@@ -57,7 +57,7 @@ public class DbTableBaseManager<T extends DbBaseManager> {
         return dbManager.query(getTableName(), columns, selection, selectionArgs, groupBy, having, orderBy, limit);
     }
 
-    protected long delete(String whereClause, String[] whereArgs) {
+    protected int delete(String whereClause, String[] whereArgs) {
         return dbManager.delete(getTableName(), whereClause, whereArgs);
     }
 

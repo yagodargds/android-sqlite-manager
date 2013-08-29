@@ -55,7 +55,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
     }
 
     protected long insert(String tableName, String nullColumnHack, ContentValues values) {
-        long rowId = 0L;
+        long rowId = -1;
 
         try {
             rowId = dbHelper.getWritableDatabase().insert(tableName, nullColumnHack, values);
@@ -81,7 +81,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
     }
 
     protected long replace(String tableName, String nullColumnHack, ContentValues initialValues) {
-        long rowId = 0L;
+        long rowId = 0;
 
         try {
             rowId = dbHelper.getWritableDatabase().replace(tableName, nullColumnHack, initialValues);
@@ -106,7 +106,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
         return cs;
     }
 
-    protected long delete(String tableName, String whereClause, String[] whereArgs) {
+    protected int delete(String tableName, String whereClause, String[] whereArgs) {
         int rowsAffected = 0;
 
         try {
