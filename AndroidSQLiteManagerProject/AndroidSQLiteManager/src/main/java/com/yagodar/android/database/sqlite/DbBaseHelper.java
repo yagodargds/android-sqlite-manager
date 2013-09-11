@@ -31,9 +31,9 @@ public abstract class DbBaseHelper<T extends DbBaseManager> extends SQLiteOpenHe
     public static final String SYMB_DOT_COMMA = ";";
     public static final String SYMB_APOSTROPHE = "'";
 
-    public static final String TYPE_TEXT = " TEXT";
-    public static final String TYPE_INTEGER = " INTEGER";
-    public static final String TYPE_REAL = " REAL";
+    public static final String EXPR_TYPE_TEXT = " TEXT";
+    public static final String EXPR_TYPE_INTEGER = " INTEGER";
+    public static final String EXPR_TYPE_REAL = " REAL";
 
     public static final String EXPR_CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS ";
     public static final String EXPR_DROP_TABLE_IF_EXISTS = "DROP TABLE IF EXISTS ";

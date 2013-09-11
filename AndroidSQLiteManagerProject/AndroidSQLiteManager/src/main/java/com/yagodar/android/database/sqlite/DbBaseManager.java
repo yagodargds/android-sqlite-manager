@@ -12,26 +12,24 @@ import java.util.HashMap;
  * Created by Yagodar on 20.08.13.
  */
 public abstract class DbBaseManager<T extends DbBaseHelper> {
-    protected DbBaseManager(T dbHelper) {
-        this.dbHelper = dbHelper;
-        this.dbHelper.setDbManager(this);
+    protected DbBaseManager(Context context) {
         this.dbTableManagers = new HashMap<String, DbTableBaseManager>();
+        addAllDbTableManager(registerDbTableManagers());
+        setDbHelper(registerDbHelper(context));
+        loadAllRecords();
     }
 
-    public DbTableBaseManager getDbTableManager(String tableName) {
-        return dbTableManagers.get(tableName);
+    public <V extends DbTableBaseContract> DbTableBaseManager getDbTableManager(V contract) {
+        return dbTableManagers.get(contract.getTableName());
     }
 
     public Collection<DbTableBaseManager> getAllDbTableManagers() {
         return dbTableManagers.values();
     }
 
-    protected void addDbTableManager(DbTableBaseManager dbTableManager) {
-        if(dbTableManager != null) {
-            dbTableManagers.put(dbTableManager.getTableName(), dbTableManager);
-            dbTableManager.setDbManager(this);
-        }
-    }
+    protected abstract Collection<DbTableBaseManager> registerDbTableManagers();
+
+    protected abstract T registerDbHelper(Context context);
 
     protected void removeDbTableManager(String tableName) {
         dbTableManagers.remove(tableName);
@@ -58,7 +56,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
         long rowId = -1;
 
         try {
-            rowId = dbHelper.getWritableDatabase().insert(tableName, nullColumnHack, values);
+            rowId = dbHelper.getWritableDatabase().insertOrThrow(tableName, nullColumnHack, values);
         }
         catch(Exception e) {
             Log.e(LOG_TAG, Log.getStackTraceString(e));
@@ -84,7 +82,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
         long rowId = 0;
 
         try {
-            rowId = dbHelper.getWritableDatabase().replace(tableName, nullColumnHack, initialValues);
+            rowId = dbHelper.getWritableDatabase().replaceOrThrow(tableName, nullColumnHack, initialValues);
         }
         catch(Exception e) {
             Log.e(LOG_TAG, Log.getStackTraceString(e));
@@ -119,7 +117,41 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
         return rowsAffected;
     }
 
-    private final T dbHelper;
+    protected void delAllRecords() {
+        for (DbTableBaseManager tableManager : getAllDbTableManagers()) {
+            tableManager.delAllRecords();
+        }
+    }
+
+    private void addDbTableManager(DbTableBaseManager dbTableManager) {
+        if(dbTableManager != null) {
+            dbTableManagers.put(dbTableManager.getTableName(), dbTableManager);
+            dbTableManager.setDbManager(this);
+        }
+    }
+
+    private void addAllDbTableManager(Collection<DbTableBaseManager> dbTableManagers) {
+        if(dbTableManagers != null) {
+            for(DbTableBaseManager dbTableManager : dbTableManagers) {
+                addDbTableManager(dbTableManager);
+            }
+        }
+    }
+
+    private void setDbHelper(T dbHelper) {
+        if(dbHelper != null) {
+            this.dbHelper = dbHelper;
+            this.dbHelper.setDbManager(this);
+        }
+    }
+
+    private void loadAllRecords() {
+        for (DbTableBaseManager dbTableManager : dbTableManagers.values()) {
+            dbTableManager.loadRecords();
+        }
+    }
+
+    private T dbHelper;
     private final HashMap<String, DbTableBaseManager> dbTableManagers;
 
     private static final String LOG_TAG = DbBaseManager.class.getSimpleName();
