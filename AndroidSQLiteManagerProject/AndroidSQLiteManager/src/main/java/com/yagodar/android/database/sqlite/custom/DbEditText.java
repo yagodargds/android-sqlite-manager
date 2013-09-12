@@ -78,6 +78,9 @@ public class DbEditText<T extends Object> extends EditText {
                 }
                 catch(Exception ignored){}
             }
+            else {
+                setDbValue(dbTableColumnBase.getDefValue());
+            }
         }
     }
 
