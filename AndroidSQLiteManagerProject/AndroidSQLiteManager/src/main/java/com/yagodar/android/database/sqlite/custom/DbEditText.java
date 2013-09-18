@@ -94,7 +94,7 @@ public class DbEditText<T extends Object> extends EditText {
     }
 
     public void pullFromDb() {
-        setText(String.valueOf(getDbValue()));
+        postSetText(String.valueOf(getDbValue()));
     }
 
     public T getDbValue() {
@@ -121,6 +121,22 @@ public class DbEditText<T extends Object> extends EditText {
         return isInputRegistered;
     }
 
+    protected void clearText() {
+        postSetText(EMPTY_TEXT);
+    }
+
+    protected void postSetText(final String text) {
+        try {
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    setText(text);
+                }
+            });
+        }
+        catch(Exception ignored) {}
+    }
+
     private class DbEtTextWatcher implements TextWatcher {
         @Override
         public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -137,4 +153,6 @@ public class DbEditText<T extends Object> extends EditText {
     private DbTableBaseManager dbTableManagerBase;
     private DbTableColumn dbTableColumnBase;
     private boolean isInputRegistered;
+
+    private static final String EMPTY_TEXT = "";
 }
