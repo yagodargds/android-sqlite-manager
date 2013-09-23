@@ -4,10 +4,15 @@ import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
+import android.util.SparseArray;
+import android.view.View;
 import android.widget.EditText;
 
 import com.yagodar.android.database.sqlite.DbTableBaseManager;
 import com.yagodar.android.database.sqlite.DbTableColumn;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /**
  * Created by Yagodar on 07.09.13.
@@ -16,7 +21,20 @@ public class DbEditText<T extends Object> extends EditText {
     public DbEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
 
+        nextFocusViews = new SparseArray<View>();
+
         addTextChangedListener(new DbEtTextWatcher());
+    }
+
+    @Override
+    public View focusSearch(int direction) {
+        View searchedView = nextFocusViews.get(direction);
+
+        if(searchedView == null) {
+            searchedView = super.focusSearch(direction);
+        }
+
+        return searchedView;
     }
 
     public void initDbManagerBase(DbTableBaseManager dbTableManagerBase, String dbTableColumnNameBase) {
@@ -49,25 +67,71 @@ public class DbEditText<T extends Object> extends EditText {
             if(text.length() > 0) {
                 try {
                     Object value;
+                    Object bigValue;
 
                     switch(dbTableColumnBase.getType()) {
                         case DbTableColumn.TYPE_DOUBLE:
-                            value = Double.parseDouble(text);
+                            bigValue = new BigDecimal(text);
+                            value = ((BigDecimal) bigValue).doubleValue();
+
+                            if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Double.MAX_VALUE)) > 0) {
+                                value = Double.MAX_VALUE;
+                            }
+                            else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Double.MAX_VALUE)) < 0) {
+                                value = -Double.MAX_VALUE;
+                            }
+
                             break;
                         case DbTableColumn.TYPE_FLOAT:
-                            value = Float.parseFloat(text);
+                            bigValue = new BigDecimal(text);
+                            value = ((BigDecimal) bigValue).floatValue();
+
+                            if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Float.MAX_VALUE)) > 0) {
+                                value = Float.MAX_VALUE;
+                            }
+                            else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Float.MAX_VALUE)) < 0) {
+                                value = -Float.MAX_VALUE;
+                            }
+
                             break;
                         case DbTableColumn.TYPE_INTEGER:
-                            value = Integer.parseInt(text);
+                            bigValue = new BigInteger(text);
+                            value = ((BigInteger) bigValue).intValue();
+
+                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
+                                value = Integer.MAX_VALUE;
+                            }
+                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Integer.MAX_VALUE)) < 0) {
+                                value = -Integer.MAX_VALUE;
+                            }
+
                             break;
                         case DbTableColumn.TYPE_BOOLEAN:
                             value = Boolean.parseBoolean(text);
                             break;
                         case DbTableColumn.TYPE_LONG:
-                            value = Long.parseLong(text);
+                            bigValue = new BigInteger(text);
+                            value = ((BigInteger) bigValue).longValue();
+
+                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                                value = Long.MAX_VALUE;
+                            }
+                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Long.MAX_VALUE)) < 0) {
+                                value = -Long.MAX_VALUE;
+                            }
+
                             break;
                         case DbTableColumn.TYPE_SHORT:
-                            value = Short.parseShort(text);
+                            bigValue = new BigInteger(text);
+                            value = ((BigInteger) bigValue).shortValue();
+
+                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0) {
+                                value = Short.MAX_VALUE;
+                            }
+                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Short.MAX_VALUE)) < 0) {
+                                value = -Short.MAX_VALUE;
+                            }
+
                             break;
                         default:
                             value = text;
@@ -117,15 +181,19 @@ public class DbEditText<T extends Object> extends EditText {
         isInputRegistered = false;
     }
 
-    protected boolean isInputRegistered() {
-        return isInputRegistered;
+    public void setNextFocusView(int direction, View view) {
+        nextFocusViews.put(direction, view);
     }
 
-    protected void clearText() {
+    public View getNextFocusView(int direction) {
+        return nextFocusViews.get(direction);
+    }
+
+    public void clearText() {
         postSetText(EMPTY_TEXT);
     }
 
-    protected void postSetText(final String text) {
+    public void postSetText(final String text) {
         try {
             post(new Runnable() {
                 @Override
@@ -135,6 +203,10 @@ public class DbEditText<T extends Object> extends EditText {
             });
         }
         catch(Exception ignored) {}
+    }
+
+    protected boolean isInputRegistered() {
+        return isInputRegistered;
     }
 
     private class DbEtTextWatcher implements TextWatcher {
@@ -153,6 +225,7 @@ public class DbEditText<T extends Object> extends EditText {
     private DbTableBaseManager dbTableManagerBase;
     private DbTableColumn dbTableColumnBase;
     private boolean isInputRegistered;
+    private SparseArray<View> nextFocusViews;
 
-    private static final String EMPTY_TEXT = "";
+    public static final String EMPTY_TEXT = "";
 }
