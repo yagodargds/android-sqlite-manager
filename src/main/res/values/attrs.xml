@@ -4,8 +4,4 @@
         <attr name="dbTableName" format="string" />
         <attr name="dbColumnName" format="string" />
     </declare-styleable>
-
-    <declare-styleable name="CustomLib">
-        <attr name="customAttr" format="string" />
-    </declare-styleable>
 </resources>
