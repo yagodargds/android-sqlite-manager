@@ -1,6 +1,7 @@
 package com.yagodar.android.database.sqlite.custom;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
@@ -10,6 +11,7 @@ import android.widget.EditText;
 
 import com.yagodar.android.database.sqlite.DbTableBaseManager;
 import com.yagodar.android.database.sqlite.DbTableColumn;
+import com.yagodar.android.database.sqlite.R;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -17,13 +19,32 @@ import java.math.BigInteger;
 /**
  * Created by Yagodar on 07.09.13.
  */
-public class DbEditText<T extends Object> extends EditText {
+public abstract class DbEditText<T extends Object> extends EditText {
     public DbEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
 
         nextFocusViews = new SparseArray<View>();
 
         addTextChangedListener(new DbEtTextWatcher());
+
+        TypedArray styledAttrs = context.getTheme().obtainStyledAttributes(
+                attrs,
+                R.styleable.DbEditText,
+                0,
+                0);
+
+        String dbTableName;
+        String dbColumnName;
+
+        try {
+            dbTableName = styledAttrs.getString(R.styleable.DbEditText_dbTableName);
+            dbColumnName = styledAttrs.getString(R.styleable.DbEditText_dbColumnName);
+        }
+        finally {
+            styledAttrs.recycle();
+        }
+
+        registerDatabase(dbTableName, dbColumnName);
     }
 
     @Override
@@ -35,13 +56,6 @@ public class DbEditText<T extends Object> extends EditText {
         }
 
         return searchedView;
-    }
-
-    public void initDbManagerBase(DbTableBaseManager dbTableManagerBase, String dbTableColumnNameBase) {
-        if(dbTableManagerBase != null) {
-            this.dbTableManagerBase = dbTableManagerBase;
-            this.dbTableColumnBase = dbTableManagerBase.getTableContract().getDbTableColumn(dbTableColumnNameBase);
-        }
     }
 
     public void setDbRecordId(long recordId) {
@@ -158,7 +172,14 @@ public class DbEditText<T extends Object> extends EditText {
     }
 
     public void pullFromDb() {
-        postSetText(String.valueOf(getDbValue()));
+        String pullValue = EMPTY_TEXT;
+
+        T dbValue = getDbValue();
+        if(dbValue != null) {
+            pullValue = String.valueOf(dbValue);
+        }
+
+        postSetText(pullValue);
     }
 
     public T getDbValue() {
@@ -205,9 +226,26 @@ public class DbEditText<T extends Object> extends EditText {
         catch(Exception ignored) {}
     }
 
+    protected DbTableBaseManager getDbTableManagerBase() {
+        return dbTableManagerBase;
+    }
+
+    protected DbTableColumn getDbTableColumnBase() {
+        return dbTableColumnBase;
+    }
+
     protected boolean isInputRegistered() {
         return isInputRegistered;
     }
+
+    protected void registerDatabase(String dbTableName, String dbColumnName) {
+        dbTableManagerBase = registerTableManager(dbTableName);
+        if(dbTableManagerBase != null) {
+            dbTableColumnBase = dbTableManagerBase.getTableContract().getDbTableColumn(dbColumnName);
+        }
+    }
+
+    abstract protected DbTableBaseManager registerTableManager(String dbTableName);
 
     private class DbEtTextWatcher implements TextWatcher {
         @Override

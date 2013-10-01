@@ -5,74 +5,70 @@ package com.yagodar.android.database.sqlite;
  */
 public class DbTableColumn {
     protected DbTableColumn(String columnName) {
-        this(false, columnName, null);
+        this(false, TYPE_NULL, columnName, null);
+    }
+
+    protected DbTableColumn(int type, String columnName) {
+        this(false, type, columnName, null);
     }
 
     protected DbTableColumn(String columnName, Object defValue) {
-        this(false, columnName, defValue);
+        this(false, TYPE_NULL, columnName, defValue);
     }
 
     protected DbTableColumn(boolean isPrimaryKey, String columnName) {
-        this(isPrimaryKey, columnName, null);
+        this(isPrimaryKey, TYPE_NULL, columnName, null);
     }
 
-    private DbTableColumn(boolean isPrimaryKey, String columnName, Object defValue) {
+    private DbTableColumn(boolean isPrimaryKey, int type, String columnName, Object defValue) {
         this.isPrimaryKey = isPrimaryKey;
         this.columnName = columnName;
         this.defValue = defValue;
 
         if(this.isPrimaryKey) {
-            type = TYPE_INTEGER;
-            exprType = DbBaseHelper.EXPR_TYPE_INTEGER;
+            this.type = TYPE_INTEGER;
             exprDefValue = null;
         }
         else if(defValue != null) {
             if(defValue instanceof Double) {
-                type = TYPE_DOUBLE;
-                exprType = DbBaseHelper.EXPR_TYPE_REAL;
+                this.type = TYPE_DOUBLE;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else if(defValue instanceof Float) {
-                type = TYPE_FLOAT;
-                exprType = DbBaseHelper.EXPR_TYPE_REAL;
+                this.type = TYPE_FLOAT;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else if(defValue instanceof Integer || defValue instanceof Byte) {
-                type = TYPE_INTEGER;
-                exprType = DbBaseHelper.EXPR_TYPE_INTEGER;
+                this.type = TYPE_INTEGER;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else if(defValue instanceof Boolean) {
-                type = TYPE_BOOLEAN;
-                exprType = DbBaseHelper.EXPR_TYPE_INTEGER;
+                this.type = TYPE_BOOLEAN;
                 exprDefValue = String.valueOf((Boolean) this.defValue ? 1 : 0);
             }
             else if(defValue instanceof Long) {
-                type = TYPE_LONG;
-                exprType = DbBaseHelper.EXPR_TYPE_INTEGER;
+                this.type = TYPE_LONG;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else if(defValue instanceof Short) {
-                type = TYPE_SHORT;
-                exprType = DbBaseHelper.EXPR_TYPE_INTEGER;
+                this.type = TYPE_SHORT;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else if(defValue instanceof String) {
-                type = TYPE_STRING;
-                exprType = DbBaseHelper.EXPR_TYPE_TEXT;
+                this.type = TYPE_STRING;
                 exprDefValue = String.valueOf(this.defValue);
             }
             else {
-                type = TYPE_NULL;
-                exprType = null;
+                this.type = TYPE_NULL;
                 exprDefValue = null;
             }
         }
         else {
-            type = TYPE_NULL;
-            exprType = null;
+            this.type = type;
             exprDefValue = null;
         }
+
+        exprType = EXPR_TYPE[this.type];
     }
 
     public String getColumnName() {
@@ -101,10 +97,10 @@ public class DbTableColumn {
         if(isPrimaryKey) {
             sQLExprOfCreation += DbBaseHelper.EXPR_PRIMARY_KEY;
         }
-        else if(!isNull()) {
+        else if(exprDefValue != null) {
             sQLExprOfCreation += DbBaseHelper.EXPR_DEFAULT + DbBaseHelper.SYMB_APOSTROPHE + exprDefValue + DbBaseHelper.SYMB_APOSTROPHE;
         }
-        else {
+        else if(!isNull()) {
             sQLExprOfCreation += DbBaseHelper.EXPR_NOT_NULL;
         }
 
@@ -127,4 +123,16 @@ public class DbTableColumn {
     public static final int TYPE_LONG = 6;
     public static final int TYPE_SHORT = 7;
     public static final int TYPE_STRING = 8;
+
+    private static final String EXPR_TYPE[] = new String[] {
+            DbBaseHelper.EXPR_TYPE_TEXT,//TODO
+            DbBaseHelper.EXPR_TYPE_TEXT,//TODO
+            DbBaseHelper.EXPR_TYPE_REAL,
+            DbBaseHelper.EXPR_TYPE_REAL,
+            DbBaseHelper.EXPR_TYPE_INTEGER,
+            DbBaseHelper.EXPR_TYPE_INTEGER,
+            DbBaseHelper.EXPR_TYPE_INTEGER,
+            DbBaseHelper.EXPR_TYPE_INTEGER,
+            DbBaseHelper.EXPR_TYPE_TEXT
+    };
 }

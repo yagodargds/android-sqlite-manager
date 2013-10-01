@@ -56,6 +56,10 @@ public abstract class DbTableBaseContract implements BaseColumns {
         addDbTableColumn(new DbTableColumn(columnName));
     }
 
+    protected void addDbTableColumn(int type, String columnName) {
+        addDbTableColumn(new DbTableColumn(type, columnName));
+    }
+
     protected void addDbTableColumn(String columnName, Object defValue) {
         addDbTableColumn(new DbTableColumn(columnName, defValue));
     }
