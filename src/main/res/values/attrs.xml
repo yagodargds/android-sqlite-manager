@@ -1,7 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="DbEditText">
-        <attr name="dbTableName" format="string" />
-        <attr name="dbColumnName" format="string" />
+    <declare-styleable name="AbstractDbEditText">
+        <attr name="tableName" format="string" />
+        <attr name="columnName" format="string" />
+        <attr name="valueType" format="enum">
+            <enum name="doubleType" value="2"/>
+            <enum name="floatType" value="3"/>
+            <enum name="intType" value="4"/>
+            <enum name="booleanType" value="5"/>
+            <enum name="longType" value="6"/>
+            <enum name="shortType" value="7"/>
+            <enum name="stringType" value="8"/>
+        </attr>
+        <attr name="defValueStr" format="string" />
+        <attr name="minValueStr" format="string" />
+        <attr name="maxValueStr" format="string" />
     </declare-styleable>
 </resources>

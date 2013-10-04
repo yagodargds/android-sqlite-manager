@@ -19,8 +19,8 @@ import java.math.BigInteger;
 /**
  * Created by Yagodar on 07.09.13.
  */
-public abstract class DbEditText<T extends Object> extends EditText {
-    public DbEditText(Context context, AttributeSet attrs) {
+public abstract class AbstractDbEditText<T extends Object> extends EditText {
+    public AbstractDbEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
 
         nextFocusViews = new SparseArray<View>();
