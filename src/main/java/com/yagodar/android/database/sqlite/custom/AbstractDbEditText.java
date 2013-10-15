@@ -2,8 +2,8 @@ package com.yagodar.android.database.sqlite.custom;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.graphics.Typeface;
+import android.text.Html;
 import android.util.AttributeSet;
 import android.util.SparseArray;
 import android.view.View;
@@ -15,6 +15,8 @@ import com.yagodar.android.database.sqlite.R;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 /**
  * Created by Yagodar on 07.09.13.
@@ -25,26 +27,55 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
 
         nextFocusViews = new SparseArray<View>();
 
-        addTextChangedListener(new DbEtTextWatcher());
+        CharSequence initHintSequence = getHint();
+        if(initHintSequence != null) {
+            initHint = initHintSequence.toString();
+        }
 
         TypedArray styledAttrs = context.getTheme().obtainStyledAttributes(
                 attrs,
-                R.styleable.DbEditText,
+                R.styleable.AbstractDbEditText,
                 0,
                 0);
 
-        String dbTableName;
-        String dbColumnName;
+        String tableName;
+        String tableColumnName;
+        String defValueStr;
+        String minValueStr;
+        String maxValueStr;
+        int minFractionDigits;
+        int maxFractionDigits;
 
         try {
-            dbTableName = styledAttrs.getString(R.styleable.DbEditText_dbTableName);
-            dbColumnName = styledAttrs.getString(R.styleable.DbEditText_dbColumnName);
+            tableName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableName);
+            tableColumnName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableColumnName);
+            valueType = styledAttrs.getInteger(R.styleable.AbstractDbEditText_valueType, VALUE_TYPE_TEXT);
+            minFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_minFractionDigits, DEF_MIN_FRACTION_DIGITS);
+            maxFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_maxFractionDigits, DEF_MAX_FRACTION_DIGITS);
+            defValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_defValueStr);
+            minValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_minValueStr);
+            maxValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_maxValueStr);
+            hintTypeface = styledAttrs.getInteger(R.styleable.AbstractDbEditText_hintTypeface, Typeface.NORMAL);
+            hintShowDefValue = styledAttrs.getBoolean(R.styleable.AbstractDbEditText_hintShowDefValue, DEF_HINT_SHOW_DEF_VALUE);
         }
         finally {
             styledAttrs.recycle();
         }
 
-        registerDatabase(dbTableName, dbColumnName);
+        decimalFormat = new DecimalFormat();
+        decimalFormat.setMinimumFractionDigits(minFractionDigits);
+        decimalFormat.setMaximumFractionDigits(maxFractionDigits);
+        decimalFormat.setGroupingUsed(false);
+
+        DecimalFormatSymbols custom = new DecimalFormatSymbols();
+        custom.setDecimalSeparator('.');
+        decimalFormat.setDecimalFormatSymbols(custom);
+
+        registerDatabase(tableName, tableColumnName);
+
+        defValue = parseStringToValue(defValueStr);
+        minValue = parseStringToValue(minValueStr);
+        maxValue = parseStringToValue(maxValueStr);
     }
 
     @Override
@@ -58,11 +89,12 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         return searchedView;
     }
 
-    public void setDbRecordId(long recordId) {
+    public void setRecordId(long recordId) {
         setTag(recordId);
+        setValue(getValue());
     }
 
-    public long getDbRecordId() {
+    public long getRecordId() {
         long dbRecordId = -1;
 
         Object tag = getTag();
@@ -74,132 +106,63 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         return dbRecordId;
     }
 
-    public void pushToDb() {
-        if(dbTableColumnBase != null && isInputRegistered()) {
-            String text = getText().toString();
-
-            if(text.length() > 0) {
-                try {
-                    Object value;
-                    Object bigValue;
-
-                    switch(dbTableColumnBase.getType()) {
-                        case DbTableColumn.TYPE_DOUBLE:
-                            bigValue = new BigDecimal(text);
-                            value = ((BigDecimal) bigValue).doubleValue();
-
-                            if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Double.MAX_VALUE)) > 0) {
-                                value = Double.MAX_VALUE;
-                            }
-                            else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Double.MAX_VALUE)) < 0) {
-                                value = -Double.MAX_VALUE;
-                            }
-
-                            break;
-                        case DbTableColumn.TYPE_FLOAT:
-                            bigValue = new BigDecimal(text);
-                            value = ((BigDecimal) bigValue).floatValue();
-
-                            if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Float.MAX_VALUE)) > 0) {
-                                value = Float.MAX_VALUE;
-                            }
-                            else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Float.MAX_VALUE)) < 0) {
-                                value = -Float.MAX_VALUE;
-                            }
-
-                            break;
-                        case DbTableColumn.TYPE_INTEGER:
-                            bigValue = new BigInteger(text);
-                            value = ((BigInteger) bigValue).intValue();
-
-                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
-                                value = Integer.MAX_VALUE;
-                            }
-                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Integer.MAX_VALUE)) < 0) {
-                                value = -Integer.MAX_VALUE;
-                            }
-
-                            break;
-                        case DbTableColumn.TYPE_BOOLEAN:
-                            value = Boolean.parseBoolean(text);
-                            break;
-                        case DbTableColumn.TYPE_LONG:
-                            bigValue = new BigInteger(text);
-                            value = ((BigInteger) bigValue).longValue();
-
-                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                                value = Long.MAX_VALUE;
-                            }
-                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Long.MAX_VALUE)) < 0) {
-                                value = -Long.MAX_VALUE;
-                            }
-
-                            break;
-                        case DbTableColumn.TYPE_SHORT:
-                            bigValue = new BigInteger(text);
-                            value = ((BigInteger) bigValue).shortValue();
-
-                            if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0) {
-                                value = Short.MAX_VALUE;
-                            }
-                            else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Short.MAX_VALUE)) < 0) {
-                                value = -Short.MAX_VALUE;
-                            }
-
-                            break;
-                        default:
-                            value = text;
-                            break;
-                    }
-
-                    setDbValue(value);
-                }
-                catch(Exception ignored){}
-            }
-            else {
-                setDbValue(dbTableColumnBase.getDefValue());
-            }
+    public void setDefValue(String defValueStr) {
+        Object newDefValue = parseStringToValue(defValueStr);
+        if(newDefValue != null) {
+            updateDbValue(defValue, newDefValue);
+            defValue = newDefValue;
         }
     }
 
-    public void setDbValue(Object value) {
-        if(dbTableManagerBase != null && dbTableColumnBase != null) {
-            long dbRecordId = getDbRecordId();
+    public void pushToDb() {
+        setValue(parseStringToValue(getText().toString()));
+    }
+
+    public void setColumnValue(Object value) {
+        if(tableManager != null && tableColumn != null) {
+            long dbRecordId = getRecordId();
             if(dbRecordId != -1) {
-                dbTableManagerBase.setColumnValue(dbRecordId, dbTableColumnBase.getColumnName(), value);
+                if(value != null && tableColumn.getType() == DbTableColumn.TYPE_STRING) {
+                    value = String.valueOf(value);
+                }
+                tableManager.setColumnValue(dbRecordId, tableColumn.getColumnName(), value);
             }
         }
     }
 
     public void pullFromDb() {
-        String pullValue = EMPTY_TEXT;
+        String pullValue;
 
-        T dbValue = getDbValue();
-        if(dbValue != null) {
-            pullValue = String.valueOf(dbValue);
+        T dbValue = getValue();
+
+        if(dbValue == null || ((initHint != null || hintShowDefValue) && dbValue.equals(defValue))) {
+            pullValue = EMPTY_TEXT;
+        }
+        else {
+            pullValue = parseValueToString(dbValue);
         }
 
         postSetText(pullValue);
     }
 
-    public T getDbValue() {
-        T value = null;
+    public T getValue() {
+        Object dbValue = null;
 
-        if(dbTableManagerBase != null && dbTableColumnBase != null) {
-            long dbRecordId = getDbRecordId();
+        if(tableManager != null && tableColumn != null) {
+            long dbRecordId = getRecordId();
             if(dbRecordId != -1) {
                 try {
-                    value = (T) dbTableManagerBase.getColumnValue(dbRecordId, dbTableColumnBase.getColumnName());
+                    dbValue = tableManager.getColumnValue(dbRecordId, tableColumn.getColumnName());
+
+                    if(tableColumn.getType() == DbTableColumn.TYPE_STRING) {
+                        dbValue = parseTypeStringValue((String) dbValue);
+                    }
                 }
                 catch(Exception ignored) {}
             }
         }
 
-        return value;
-    }
-
-    public void resetInputRegistered() {
-        isInputRegistered = false;
+        return (T) dbValue;
     }
 
     public void setNextFocusView(int direction, View view) {
@@ -226,44 +189,340 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         catch(Exception ignored) {}
     }
 
-    protected DbTableBaseManager getDbTableManagerBase() {
-        return dbTableManagerBase;
+    public void syncValue() {
+        pushToDb();
+        pullFromDb();
     }
 
-    protected DbTableColumn getDbTableColumnBase() {
-        return dbTableColumnBase;
+    public void syncValue(Object value) {
+        setValue(value);
+        pullFromDb();
     }
 
-    protected boolean isInputRegistered() {
-        return isInputRegistered;
+    protected DbTableBaseManager getTableManager() {
+        return tableManager;
     }
 
-    protected void registerDatabase(String dbTableName, String dbColumnName) {
-        dbTableManagerBase = registerTableManager(dbTableName);
-        if(dbTableManagerBase != null) {
-            dbTableColumnBase = dbTableManagerBase.getTableContract().getDbTableColumn(dbColumnName);
+    protected DbTableColumn getTableColumn() {
+        return tableColumn;
+    }
+
+    protected void registerDatabase(String tableName, String tableColumnName) {
+        tableManager = registerTableManager(tableName);
+
+        if(tableManager != null) {
+            tableColumn = tableManager.getTableContract().getDbTableColumn(tableColumnName);
+        }
+
+        postUpdateHint();
+    }
+
+    abstract protected DbTableBaseManager registerTableManager(String tableName);
+
+    private void updateDbValue(Object oldDefValue, Object newDefValue) {
+        if(newDefValue != null && (oldDefValue == null || compareValues(getValue(), oldDefValue) == 0 && !oldDefValue.equals(newDefValue))) {
+            setValue(newDefValue);
         }
     }
 
-    abstract protected DbTableBaseManager registerTableManager(String dbTableName);
+    private void setValue(Object value) {
+        if(tableColumn != null) {
+            Object defDbValue = parseStringToValue(parseValueToString(tableColumn.getDefValue()));
+            if(value == null || value.equals(defDbValue)) {
+                if(defValue == null) {
+                    defValue = defDbValue;
+                }
 
-    private class DbEtTextWatcher implements TextWatcher {
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                value = defValue;
+            }
 
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-            isInputRegistered = true;
+            if(compareValues(value, minValue) == -1) {
+                value = minValue;
+            }
+
+            if(compareValues(value, maxValue) == 1) {
+                value = maxValue;
+            }
+
+            setColumnValue(value);
         }
-
-        @Override
-        public void afterTextChanged(Editable s) {}
     }
 
-    private DbTableBaseManager dbTableManagerBase;
-    private DbTableColumn dbTableColumnBase;
-    private boolean isInputRegistered;
+    private Object parseStringToValue(String valueStr) {
+        Object value = null;
+
+        if(tableColumn != null && valueStr != null && valueStr.length() > 0) {
+            try {
+                Object bigValue;
+
+                switch(tableColumn.getType()) {
+                    case DbTableColumn.TYPE_DOUBLE:
+                        bigValue = new BigDecimal(valueStr);
+                        value = ((BigDecimal) bigValue).doubleValue();
+
+                        if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Double.MAX_VALUE)) > 0) {
+                            value = Double.MAX_VALUE;
+                        }
+                        else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Double.MAX_VALUE)) < 0) {
+                            value = -Double.MAX_VALUE;
+                        }
+
+                        break;
+                    case DbTableColumn.TYPE_FLOAT:
+                        bigValue = new BigDecimal(valueStr);
+                        value = ((BigDecimal) bigValue).floatValue();
+
+                        if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(Float.MAX_VALUE)) > 0) {
+                            value = Float.MAX_VALUE;
+                        }
+                        else if(((BigDecimal) bigValue).compareTo(BigDecimal.valueOf(-Float.MAX_VALUE)) < 0) {
+                            value = -Float.MAX_VALUE;
+                        }
+
+                        break;
+                    case DbTableColumn.TYPE_INTEGER:
+                        bigValue = new BigInteger(valueStr);
+                        value = ((BigInteger) bigValue).intValue();
+
+                        if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) {
+                            value = Integer.MAX_VALUE;
+                        }
+                        else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Integer.MAX_VALUE)) < 0) {
+                            value = -Integer.MAX_VALUE;
+                        }
+
+                        break;
+                    case DbTableColumn.TYPE_BOOLEAN:
+                        value = Boolean.parseBoolean(valueStr);
+                        break;
+                    case DbTableColumn.TYPE_LONG:
+                        bigValue = new BigInteger(valueStr);
+                        value = ((BigInteger) bigValue).longValue();
+
+                        if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                            value = Long.MAX_VALUE;
+                        }
+                        else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Long.MAX_VALUE)) < 0) {
+                            value = -Long.MAX_VALUE;
+                        }
+
+                        break;
+                    case DbTableColumn.TYPE_SHORT:
+                        bigValue = new BigInteger(valueStr);
+                        value = ((BigInteger) bigValue).shortValue();
+
+                        if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0) {
+                            value = Short.MAX_VALUE;
+                        }
+                        else if(((BigInteger) bigValue).compareTo(BigInteger.valueOf(-Short.MAX_VALUE)) < 0) {
+                            value = -Short.MAX_VALUE;
+                        }
+
+                        break;
+                    case DbTableColumn.TYPE_STRING:
+                        value = parseTypeStringValue(valueStr);
+                        break;
+                    default:
+                        value = valueStr;
+                        break;
+                }
+            }
+            catch(Exception ignored){}
+        }
+
+        return value;
+    }
+
+    private String parseValueToString(Object value) {
+        String parsedValue = String.valueOf(value);
+
+        if(tableColumn != null) {
+            try {
+                switch(tableColumn.getType()) {
+                    case DbTableColumn.TYPE_DOUBLE:
+                    case DbTableColumn.TYPE_FLOAT:
+                        parsedValue = decimalFormat.format(value);
+                        break;
+                    case DbTableColumn.TYPE_STRING:
+                        switch(valueType) {
+                            case VALUE_TYPE_INTEGER:
+                                parsedValue = String.valueOf(value);
+                                break;
+                            case VALUE_TYPE_REAL:
+                                parsedValue = decimalFormat.format(value);
+                                break;
+                            case VALUE_TYPE_TEXT:
+                            default:
+                                parsedValue = String.valueOf(value);
+                                break;
+                        }
+
+                        break;
+                    default:
+                        parsedValue = String.valueOf(value);
+                        break;
+                }
+            }
+            catch(Exception ignored) {}
+        }
+
+        return parsedValue;
+    }
+
+    private Object parseTypeStringValue(String typeStringValueStr) {
+        Object value = null;
+
+        if(typeStringValueStr != null && typeStringValueStr.length() > 0) {
+            try {
+                switch(valueType) {
+                    case VALUE_TYPE_INTEGER:
+                        value = new BigInteger(typeStringValueStr);
+                        break;
+                    case VALUE_TYPE_REAL:
+                        value = new BigDecimal(typeStringValueStr);
+                        break;
+                    case VALUE_TYPE_TEXT:
+                    default:
+                        value = typeStringValueStr;
+                        break;
+                }
+            }
+            catch(Exception ignored){}
+        }
+
+        return value;
+    }
+
+    private int compareValues(Object value, Object compareToValue) {
+        int result = -2;
+
+        if(value != null && compareToValue != null) {
+            try {
+                switch(tableColumn.getType()) {
+                    case DbTableColumn.TYPE_DOUBLE:
+                        result = ((Double) value).compareTo((Double) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_FLOAT:
+                        result = ((Float) value).compareTo((Float) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_INTEGER:
+                        result = ((Integer) value).compareTo((Integer) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_BOOLEAN:
+                        result = ((Boolean) value).compareTo((Boolean) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_LONG:
+                        result = ((Long) value).compareTo((Long) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_SHORT:
+                        result = ((Short) value).compareTo((Short) compareToValue);
+                        break;
+                    case DbTableColumn.TYPE_STRING:
+                        switch(valueType) {
+                            case VALUE_TYPE_INTEGER:
+                                result = ((BigInteger) value).compareTo((BigInteger) compareToValue);
+                                break;
+                            case VALUE_TYPE_REAL:
+                                result = ((BigDecimal) value).compareTo((BigDecimal) compareToValue);
+                                break;
+                            case VALUE_TYPE_TEXT:
+                            default:
+                                result = ((String) value).compareTo((String) compareToValue);
+                                break;
+                        }
+
+                        break;
+                    default:
+                        if(value.equals(compareToValue)) {
+                            result = 0;
+                        }
+                        break;
+                }
+            }
+            catch(Exception ignored){}
+        }
+
+        return result;
+    }
+
+    private void updateHint() {
+        String updatedHint = EMPTY_TEXT;
+
+        if(hintShowDefValue) {
+            if(defValue == null && tableColumn != null) {
+                defValue = tableColumn.getDefValue();
+            }
+
+            updatedHint = HINT_DB_VALUE_SEP + parseValueToString(defValue);
+        }
+
+        if(initHint != null && initHint.length() > 0) {
+            updatedHint = initHint + updatedHint;
+        }
+        else if(hintShowDefValue) {
+            updatedHint = updatedHint.replaceAll(HINT_DB_VALUE_SEP, EMPTY_TEXT);
+        }
+
+        setHint(getTypefacedHtmlText(hintTypeface, updatedHint));
+    }
+
+    private static CharSequence getTypefacedHtmlText(int typeface, String initText) {
+        if(initText == null || typeface < 0 || typeface >= TYPEFACE_TAG.length) {
+            return null;
+        }
+
+        return Html.fromHtml(TYPEFACE_TAG[typeface] + initText + TYPEFACE_TAG[typeface].replaceAll(TAG_OPENING, TAG_OPENING + TAG_END_OPENING));
+    }
+
+    private void postUpdateHint() {
+        try {
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    updateHint();
+                }
+            });
+        }
+        catch(Exception ignored) {}
+    }
+
     private SparseArray<View> nextFocusViews;
+    private String initHint;
+    private DecimalFormat decimalFormat;
+
+    private DbTableBaseManager tableManager;
+    private DbTableColumn tableColumn;
+    private int valueType;
+    private Object defValue;
+    private Object minValue;
+    private Object maxValue;
+    private int hintTypeface;
+    private boolean hintShowDefValue;
 
     public static final String EMPTY_TEXT = "";
+
+    private static final int VALUE_TYPE_TEXT = 0;
+    private static final int VALUE_TYPE_INTEGER = 1;
+    private static final int VALUE_TYPE_REAL = 2;
+
+    private static final String HINT_DB_VALUE_SEP = ":";
+
+    private static final String TAG_OPENING = "<";
+    private static final String TAG_END_OPENING = "/";
+    private static final String TAG_CLOSING = ">";
+
+    private static final String TAG_TYPEFACE_BOLD = "b";
+    private static final String TAG_TYPEFACE_ITALIC = "i";
+    private static final String TAG_TYPEFACE_BOLD_ITALIC = TAG_TYPEFACE_BOLD + TAG_CLOSING + TAG_OPENING + TAG_TYPEFACE_ITALIC;
+
+    private static final String TYPEFACE_TAG[] = new String[] {
+            EMPTY_TEXT,                                             //Typeface.NORMAL
+            TAG_OPENING + TAG_TYPEFACE_BOLD + TAG_CLOSING,          //Typeface.BOLD
+            TAG_OPENING + TAG_TYPEFACE_ITALIC + TAG_CLOSING,        //Typeface.ITALIC
+            TAG_OPENING + TAG_TYPEFACE_BOLD_ITALIC + TAG_CLOSING,   //Typeface.BOLD_ITALIC
+    };
+
+    private static boolean DEF_HINT_SHOW_DEF_VALUE = true;
+    private static int DEF_MIN_FRACTION_DIGITS = 2;
+    private static int DEF_MAX_FRACTION_DIGITS = DEF_MIN_FRACTION_DIGITS;
 }

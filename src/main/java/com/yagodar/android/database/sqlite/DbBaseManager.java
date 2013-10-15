@@ -23,6 +23,10 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
         return dbTableManagers.get(contract.getTableName());
     }
 
+    public <V extends DbTableBaseContract> DbTableBaseManager getDbTableManager(String tableName) {
+        return dbTableManagers.get(tableName);
+    }
+
     public Collection<DbTableBaseManager> getAllDbTableManagers() {
         return dbTableManagers.values();
     }
@@ -41,7 +45,7 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
 
     protected boolean isContextEquals(Context context) {
         if(context != null) {
-            return dbHelper.getReadableDatabase().getPath().equals(context.getDatabasePath(getDbName()));
+            return dbHelper.getReadableDatabase().getPath().equals(context.getDatabasePath(getDbName()).getPath());
         }
 
         return false;

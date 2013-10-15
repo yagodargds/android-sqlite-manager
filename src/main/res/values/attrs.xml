@@ -2,18 +2,23 @@
 <resources>
     <declare-styleable name="AbstractDbEditText">
         <attr name="tableName" format="string" />
-        <attr name="columnName" format="string" />
+        <attr name="tableColumnName" format="string" />
         <attr name="valueType" format="enum">
-            <enum name="doubleType" value="2"/>
-            <enum name="floatType" value="3"/>
-            <enum name="intType" value="4"/>
-            <enum name="booleanType" value="5"/>
-            <enum name="longType" value="6"/>
-            <enum name="shortType" value="7"/>
-            <enum name="stringType" value="8"/>
+            <enum name="text" value="0"/>
+            <enum name="integer" value="1"/>
+            <enum name="real" value="2"/>
         </attr>
         <attr name="defValueStr" format="string" />
         <attr name="minValueStr" format="string" />
         <attr name="maxValueStr" format="string" />
+        <attr name="minFractionDigits" format="integer" />
+        <attr name="maxFractionDigits" format="integer" />
+        <attr name="hintTypeface" format="enum">
+            <enum name="normal" value="0"/>
+            <enum name="bold" value="1"/>
+            <enum name="italic" value="2"/>
+            <enum name="boldItalic" value="3"/>
+        </attr>
+        <attr name="hintShowDefValue" format="boolean" />
     </declare-styleable>
 </resources>
