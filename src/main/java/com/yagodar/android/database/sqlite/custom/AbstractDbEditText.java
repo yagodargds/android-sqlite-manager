@@ -131,18 +131,14 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
     }
 
     public void pullFromDb() {
-        String pullValue;
-
         T dbValue = getValue();
 
         if(dbValue == null || ((initHint != null || hintShowDefValue) && dbValue.equals(defValue))) {
-            pullValue = EMPTY_TEXT;
+            clearText();
         }
         else {
-            pullValue = parseValueToString(dbValue);
+            postSetText(parseValueToString(dbValue));
         }
-
-        postSetText(pullValue);
     }
 
     public T getValue() {
