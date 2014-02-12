@@ -3,43 +3,58 @@ package com.yagodar.android.database.sqlite;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 
 /**
  * Created by Yagodar on 20.08.13.
  */
-public abstract class DbBaseManager<T extends DbBaseHelper> {
-    protected DbBaseManager(Context context) {
-        this.dbTableManagers = new HashMap<String, DbTableBaseManager>();
+public abstract class AbstractDbManager {
+    protected AbstractDbManager(Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
+        this.dbTableManagers = new HashMap<String, DbTableManager>();
         addAllDbTableManager(registerDbTableManagers());
-        setDbHelper(registerDbHelper(context));
+        setDbHelper(registerDbHelper(context, dbName, csFactory, dbVersion));
         loadAllRecords();
     }
 
-    public <V extends DbTableBaseContract> DbTableBaseManager getDbTableManager(V contract) {
+    public <V extends AbstractDbTableContract> DbTableManager getDbTableManager(V contract) {
         return dbTableManagers.get(contract.getTableName());
     }
 
-    public <V extends DbTableBaseContract> DbTableBaseManager getDbTableManager(String tableName) {
+    public <V extends AbstractDbTableContract> DbTableManager getDbTableManager(String tableName) {
         return dbTableManagers.get(tableName);
     }
 
-    public Collection<DbTableBaseManager> getAllDbTableManagers() {
+    public Collection<DbTableManager> getAllDbTableManagers() {
         return dbTableManagers.values();
     }
 
-    protected abstract Collection<DbTableBaseManager> registerDbTableManagers();
+    protected abstract Collection<AbstractDbTableContract> registerDbTableContracts();
 
-    protected abstract T registerDbHelper(Context context);
+    protected Collection<DbTableManager> registerDbTableManagers() {
+        ArrayList<DbTableManager> dbTableManagers = new ArrayList<DbTableManager>();
+
+        for(AbstractDbTableContract dbTableContract : registerDbTableContracts()) {
+            dbTableManagers.add(new DbTableManager(dbTableContract));
+        }
+
+        return dbTableManagers;
+    }
+
+
+    protected DbHelper registerDbHelper(Context contextString, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
+        return new DbHelper(contextString, dbName, csFactory, dbVersion);
+    }
 
     protected void removeDbTableManager(String tableName) {
         dbTableManagers.remove(tableName);
     }
 
-    protected T getDbHelper() {
+    protected DbHelper getDbHelper() {
         return dbHelper;
     }
 
@@ -122,27 +137,27 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
     }
 
     protected void delAllRecords() {
-        for (DbTableBaseManager tableManager : getAllDbTableManagers()) {
+        for (DbTableManager tableManager : getAllDbTableManagers()) {
             tableManager.delAllRecords();
         }
     }
 
-    private void addDbTableManager(DbTableBaseManager dbTableManager) {
+    private void addDbTableManager(DbTableManager dbTableManager) {
         if(dbTableManager != null) {
             dbTableManagers.put(dbTableManager.getTableName(), dbTableManager);
             dbTableManager.setDbManager(this);
         }
     }
 
-    private void addAllDbTableManager(Collection<DbTableBaseManager> dbTableManagers) {
+    private void addAllDbTableManager(Collection<DbTableManager> dbTableManagers) {
         if(dbTableManagers != null) {
-            for(DbTableBaseManager dbTableManager : dbTableManagers) {
+            for(DbTableManager dbTableManager : dbTableManagers) {
                 addDbTableManager(dbTableManager);
             }
         }
     }
 
-    private void setDbHelper(T dbHelper) {
+    private void setDbHelper(DbHelper dbHelper) {
         if(dbHelper != null) {
             this.dbHelper = dbHelper;
             this.dbHelper.setDbManager(this);
@@ -150,13 +165,13 @@ public abstract class DbBaseManager<T extends DbBaseHelper> {
     }
 
     private void loadAllRecords() {
-        for (DbTableBaseManager dbTableManager : dbTableManagers.values()) {
+        for (DbTableManager dbTableManager : dbTableManagers.values()) {
             dbTableManager.loadRecords();
         }
     }
 
-    private T dbHelper;
-    private final HashMap<String, DbTableBaseManager> dbTableManagers;
+    private DbHelper dbHelper;
+    private final HashMap<String, DbTableManager> dbTableManagers;
 
-    private static final String LOG_TAG = DbBaseManager.class.getSimpleName();
+    private static final String LOG_TAG = AbstractDbManager.class.getSimpleName();
 }

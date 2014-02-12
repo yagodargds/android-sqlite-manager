@@ -95,13 +95,13 @@ public class DbTableColumn {
         String sQLExprOfCreation = columnName + exprType;
 
         if(isPrimaryKey) {
-            sQLExprOfCreation += DbBaseHelper.EXPR_PRIMARY_KEY;
+            sQLExprOfCreation += DbHelper.EXPR_PRIMARY_KEY;
         }
         else if(exprDefValue != null) {
-            sQLExprOfCreation += DbBaseHelper.EXPR_DEFAULT + DbBaseHelper.SYMB_APOSTROPHE + exprDefValue + DbBaseHelper.SYMB_APOSTROPHE;
+            sQLExprOfCreation += DbHelper.EXPR_DEFAULT + DbHelper.SYMB_APOSTROPHE + exprDefValue + DbHelper.SYMB_APOSTROPHE;
         }
         else if(!isNull()) {
-            sQLExprOfCreation += DbBaseHelper.EXPR_NOT_NULL;
+            sQLExprOfCreation += DbHelper.EXPR_NOT_NULL;
         }
 
         return sQLExprOfCreation;
@@ -125,14 +125,14 @@ public class DbTableColumn {
     public static final int TYPE_STRING = 8;
 
     private static final String EXPR_TYPE[] = new String[] {
-            DbBaseHelper.EXPR_TYPE_TEXT,//TODO
-            DbBaseHelper.EXPR_TYPE_TEXT,//TODO
-            DbBaseHelper.EXPR_TYPE_REAL,
-            DbBaseHelper.EXPR_TYPE_REAL,
-            DbBaseHelper.EXPR_TYPE_INTEGER,
-            DbBaseHelper.EXPR_TYPE_INTEGER,
-            DbBaseHelper.EXPR_TYPE_INTEGER,
-            DbBaseHelper.EXPR_TYPE_INTEGER,
-            DbBaseHelper.EXPR_TYPE_TEXT
+            DbHelper.EXPR_TYPE_TEXT,//TODO
+            DbHelper.EXPR_TYPE_TEXT,//TODO
+            DbHelper.EXPR_TYPE_REAL,
+            DbHelper.EXPR_TYPE_REAL,
+            DbHelper.EXPR_TYPE_INTEGER,
+            DbHelper.EXPR_TYPE_INTEGER,
+            DbHelper.EXPR_TYPE_INTEGER,
+            DbHelper.EXPR_TYPE_INTEGER,
+            DbHelper.EXPR_TYPE_TEXT
     };
 }

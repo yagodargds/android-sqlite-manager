@@ -7,20 +7,41 @@ import android.database.sqlite.SQLiteOpenHelper;
 /**
  * Created by Yagodar on 13.08.13.
  */
-public abstract class DbBaseHelper<T extends DbBaseManager> extends SQLiteOpenHelper {
-    protected DbBaseHelper(Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
+public class DbHelper extends SQLiteOpenHelper {
+    protected DbHelper(Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
         super(context, dbName, csFactory, dbVersion);
     }
 
-    protected void setDbManager(T dbManager) {
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        for (DbTableManager dbTableManager : getDbManager().getAllDbTableManagers()) {
+            db.execSQL(dbTableManager.getSQLExprCreateDbTable());
+        }
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        for (DbTableManager dbTableManager : getDbManager().getAllDbTableManagers()) {
+            db.execSQL(dbTableManager.getSQLExprDeleteDbTable());
+        }
+
+        onCreate(db);
+    }
+
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        onUpgrade(db, oldVersion, newVersion);
+    }
+
+    protected void setDbManager(AbstractDbManager dbManager) {
         this.dbManager = dbManager;
     }
 
-    protected T getDbManager() {
+    protected AbstractDbManager getDbManager() {
         return dbManager;
     }
 
-    private T dbManager;
+    private AbstractDbManager dbManager;
 
     public static final String SYMB_OP_EQUALITY = "=";
 

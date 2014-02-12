@@ -9,7 +9,7 @@ import android.util.SparseArray;
 import android.view.View;
 import android.widget.EditText;
 
-import com.yagodar.android.database.sqlite.DbTableBaseManager;
+import com.yagodar.android.database.sqlite.DbTableManager;
 import com.yagodar.android.database.sqlite.DbTableColumn;
 import com.yagodar.android.database.sqlite.R;
 
@@ -25,57 +25,58 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
     public AbstractDbEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        nextFocusViews = new SparseArray<View>();
+        if (!isInEditMode()) {
+            nextFocusViews = new SparseArray<View>();
 
-        CharSequence initHintSequence = getHint();
-        if(initHintSequence != null) {
-            initHint = initHintSequence.toString();
+            CharSequence initHintSequence = getHint();
+            if (initHintSequence != null) {
+                initHint = initHintSequence.toString();
+            }
+
+            TypedArray styledAttrs = context.getTheme().obtainStyledAttributes(
+                    attrs,
+                    R.styleable.AbstractDbEditText,
+                    0,
+                    0);
+
+            String tableName;
+            String tableColumnName;
+            String defValueStr;
+            String minValueStr;
+            String maxValueStr;
+            int minFractionDigits;
+            int maxFractionDigits;
+
+            try {
+                tableName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableName);
+                tableColumnName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableColumnName);
+                valueType = styledAttrs.getInteger(R.styleable.AbstractDbEditText_valueType, VALUE_TYPE_TEXT);
+                minFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_minFractionDigits, DEF_MIN_FRACTION_DIGITS);
+                maxFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_maxFractionDigits, DEF_MAX_FRACTION_DIGITS);
+                defValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_defValueStr);
+                minValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_minValueStr);
+                maxValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_maxValueStr);
+                hintTypeface = styledAttrs.getInteger(R.styleable.AbstractDbEditText_hintTypeface, Typeface.NORMAL);
+                hintShowDefValue = styledAttrs.getBoolean(R.styleable.AbstractDbEditText_hintShowDefValue, DEF_HINT_SHOW_DEF_VALUE);
+            } finally {
+                styledAttrs.recycle();
+            }
+
+            decimalFormat = new DecimalFormat();
+            decimalFormat.setMinimumFractionDigits(minFractionDigits);
+            decimalFormat.setMaximumFractionDigits(maxFractionDigits);
+            decimalFormat.setGroupingUsed(false);
+
+            DecimalFormatSymbols custom = new DecimalFormatSymbols();
+            custom.setDecimalSeparator('.');
+            decimalFormat.setDecimalFormatSymbols(custom);
+
+            registerDatabase(tableName, tableColumnName);
+
+            defValue = parseStringToValue(defValueStr);
+            minValue = parseStringToValue(minValueStr);
+            maxValue = parseStringToValue(maxValueStr);
         }
-
-        TypedArray styledAttrs = context.getTheme().obtainStyledAttributes(
-                attrs,
-                R.styleable.AbstractDbEditText,
-                0,
-                0);
-
-        String tableName;
-        String tableColumnName;
-        String defValueStr;
-        String minValueStr;
-        String maxValueStr;
-        int minFractionDigits;
-        int maxFractionDigits;
-
-        try {
-            tableName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableName);
-            tableColumnName = styledAttrs.getString(R.styleable.AbstractDbEditText_tableColumnName);
-            valueType = styledAttrs.getInteger(R.styleable.AbstractDbEditText_valueType, VALUE_TYPE_TEXT);
-            minFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_minFractionDigits, DEF_MIN_FRACTION_DIGITS);
-            maxFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_maxFractionDigits, DEF_MAX_FRACTION_DIGITS);
-            defValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_defValueStr);
-            minValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_minValueStr);
-            maxValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_maxValueStr);
-            hintTypeface = styledAttrs.getInteger(R.styleable.AbstractDbEditText_hintTypeface, Typeface.NORMAL);
-            hintShowDefValue = styledAttrs.getBoolean(R.styleable.AbstractDbEditText_hintShowDefValue, DEF_HINT_SHOW_DEF_VALUE);
-        }
-        finally {
-            styledAttrs.recycle();
-        }
-
-        decimalFormat = new DecimalFormat();
-        decimalFormat.setMinimumFractionDigits(minFractionDigits);
-        decimalFormat.setMaximumFractionDigits(maxFractionDigits);
-        decimalFormat.setGroupingUsed(false);
-
-        DecimalFormatSymbols custom = new DecimalFormatSymbols();
-        custom.setDecimalSeparator('.');
-        decimalFormat.setDecimalFormatSymbols(custom);
-
-        registerDatabase(tableName, tableColumnName);
-
-        defValue = parseStringToValue(defValueStr);
-        minValue = parseStringToValue(minValueStr);
-        maxValue = parseStringToValue(maxValueStr);
     }
 
     @Override
@@ -195,7 +196,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         pullFromDb();
     }
 
-    protected DbTableBaseManager getTableManager() {
+    protected DbTableManager getTableManager() {
         return tableManager;
     }
 
@@ -213,7 +214,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         postUpdateHint();
     }
 
-    abstract protected DbTableBaseManager registerTableManager(String tableName);
+    abstract protected DbTableManager registerTableManager(String tableName);
 
     private void updateDbValue(Object oldDefValue, Object newDefValue) {
         if(newDefValue != null && (oldDefValue == null || compareValues(getValue(), oldDefValue) == 0 && !oldDefValue.equals(newDefValue))) {
@@ -486,7 +487,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
     private String initHint;
     private DecimalFormat decimalFormat;
 
-    private DbTableBaseManager tableManager;
+    private DbTableManager tableManager;
     private DbTableColumn tableColumn;
     private int valueType;
     private Object defValue;

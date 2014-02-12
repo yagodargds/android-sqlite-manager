@@ -2,17 +2,13 @@ package com.yagodar.android.database.sqlite;
 
 import android.provider.BaseColumns;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 
 /**
  * Created by Yagodar on 23.08.13.
  */
-public abstract class DbTableBaseContract implements BaseColumns {
-    protected DbTableBaseContract(String tableName) {
+public abstract class AbstractDbTableContract implements BaseColumns {
+    protected AbstractDbTableContract(String tableName) {
         this.tableName = tableName;
         dbTableColumns = new LinkedList<DbTableColumn>();
         dbTableColumnNames = new LinkedList<String>();

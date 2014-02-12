@@ -11,18 +11,18 @@ import java.util.Map;
 /**
  * Created by Yagodar on 22.08.13.
  */
-public class DbTableBaseManager<T extends DbBaseManager> {
-    public DbTableBaseManager(DbTableBaseContract tableContract) {
+public class DbTableManager {
+    public DbTableManager(AbstractDbTableContract tableContract) {
         this.tableContract = tableContract;
     }
 
     public String getSQLExprCreateDbTable() {
-        return DbBaseHelper.EXPR_CREATE_TABLE_IF_NOT_EXISTS
+        return DbHelper.EXPR_CREATE_TABLE_IF_NOT_EXISTS
                 + getTableName()
-                + DbBaseHelper.SYMB_BRACKET_OPEN
+                + DbHelper.SYMB_BRACKET_OPEN
                 + getSQLExprCreateDbTableColumns()
-                + DbBaseHelper.SYMB_BRACKET_CLOSE
-                + DbBaseHelper.SYMB_DOT_COMMA;
+                + DbHelper.SYMB_BRACKET_CLOSE
+                + DbHelper.SYMB_DOT_COMMA;
     }
 
     public long addRecord() {
@@ -40,7 +40,7 @@ public class DbTableBaseManager<T extends DbBaseManager> {
     }
 
     public int setValues(long id, ContentValues values) {
-        return update(values, BaseColumns._ID + DbBaseHelper.SYMB_OP_EQUALITY + id, null);
+        return update(values, BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
     }
 
     public DbTableRecord getRecord(long id) {
@@ -52,7 +52,7 @@ public class DbTableBaseManager<T extends DbBaseManager> {
     }
 
     public int delRecord(long id) {
-        int rowsAffected = delete(BaseColumns._ID + DbBaseHelper.SYMB_OP_EQUALITY + id, null);
+        int rowsAffected = delete(BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
 
         if(rowsAffected != 0) {
             recordsMap.remove(id);
@@ -72,11 +72,11 @@ public class DbTableBaseManager<T extends DbBaseManager> {
     }
 
     public String getSQLExprDeleteDbTable() {
-        return DbBaseHelper.EXPR_DROP_TABLE_IF_EXISTS
+        return DbHelper.EXPR_DROP_TABLE_IF_EXISTS
                 + getTableName();
     }
 
-    public DbTableBaseContract getTableContract() {
+    public AbstractDbTableContract getTableContract() {
         return tableContract;
     }
 
@@ -161,11 +161,11 @@ public class DbTableBaseManager<T extends DbBaseManager> {
         return tableContract.getTableName();
     }
 
-    protected void setDbManager(T dbManager) {
+    protected void setDbManager(AbstractDbManager dbManager) {
         this.dbManager = dbManager;
     }
 
-    protected T getDbManager() {
+    protected AbstractDbManager getDbManager() {
         return dbManager;
     }
 
@@ -194,10 +194,10 @@ public class DbTableBaseManager<T extends DbBaseManager> {
 
         for (DbTableColumn columnInfo : tableContract.getAllDbTableColumns()) {
             sqlExpr += columnInfo.getSQLExprOfCreation();
-            sqlExpr += DbBaseHelper.SYMB_COMMA;
+            sqlExpr += DbHelper.SYMB_COMMA;
         }
 
-        return sqlExpr.substring(0, sqlExpr.length() - DbBaseHelper.SYMB_COMMA.length());
+        return sqlExpr.substring(0, sqlExpr.length() - DbHelper.SYMB_COMMA.length());
     }
 
     private Object getValue(Cursor cs, DbTableColumn column) {
@@ -274,8 +274,8 @@ public class DbTableBaseManager<T extends DbBaseManager> {
         private Object[] columnValues;
     }
 
-    private T dbManager;
+    private AbstractDbManager dbManager;
     private LinkedHashMap<Long, DbTableRecord> recordsMap;
 
-    private final DbTableBaseContract tableContract;
+    private final AbstractDbTableContract tableContract;
 }
