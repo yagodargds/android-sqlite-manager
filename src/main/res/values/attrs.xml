@@ -9,6 +9,7 @@
             <enum name="real" value="2"/>
         </attr>
         <attr name="defValueStr" format="string" />
+        <attr name="editDefValue" format="boolean" />
         <attr name="minValueStr" format="string" />
         <attr name="maxValueStr" format="string" />
         <attr name="minFractionDigits" format="integer" />

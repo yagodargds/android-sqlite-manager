@@ -2,6 +2,7 @@ package com.yagodar.android.database.sqlite.custom;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.text.Html;
 import android.util.AttributeSet;
@@ -26,7 +27,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         super(context, attrs);
 
         if (!isInEditMode()) {
-            nextFocusViews = new SparseArray<View>();
+            nextFocusViews = new SparseArray<>();
 
             CharSequence initHintSequence = getHint();
             if (initHintSequence != null) {
@@ -41,7 +42,6 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
 
             String tableName;
             String tableColumnName;
-            String defValueStr;
             String minValueStr;
             String maxValueStr;
             int minFractionDigits;
@@ -53,7 +53,8 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
                 valueType = styledAttrs.getInteger(R.styleable.AbstractDbEditText_valueType, VALUE_TYPE_TEXT);
                 minFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_minFractionDigits, DEF_MIN_FRACTION_DIGITS);
                 maxFractionDigits = styledAttrs.getInteger(R.styleable.AbstractDbEditText_maxFractionDigits, DEF_MAX_FRACTION_DIGITS);
-                defValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_defValueStr);
+                initDefValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_defValueStr);
+                editDefValue = styledAttrs.getBoolean(R.styleable.AbstractDbEditText_editDefValue, DEF_EDIT_DEF_VALUE);
                 minValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_minValueStr);
                 maxValueStr = styledAttrs.getString(R.styleable.AbstractDbEditText_maxValueStr);
                 hintTypeface = styledAttrs.getInteger(R.styleable.AbstractDbEditText_hintTypeface, Typeface.NORMAL);
@@ -73,7 +74,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
 
             registerDatabase(tableName, tableColumnName);
 
-            defValue = parseStringToValue(defValueStr);
+            defValue = getInitDefValue();
             minValue = parseStringToValue(minValueStr);
             maxValue = parseStringToValue(maxValueStr);
         }
@@ -88,6 +89,17 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         }
 
         return searchedView;
+    }
+
+    @Override
+    protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+        super.onFocusChanged(focused, direction, previouslyFocusedRect);
+
+        if(focused && editDefValue) {
+            String dbValueStr = parseValueToString(getValue());
+            postSetText(dbValueStr);
+            postSetSelection(dbValueStr.length());
+        }
     }
 
     public void setRecordId(long recordId) {
@@ -107,38 +119,68 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         return dbRecordId;
     }
 
-    public void setDefValue(String defValueStr) {
-        Object newDefValue = parseStringToValue(defValueStr);
-        if(newDefValue != null) {
-            updateDbValue(defValue, newDefValue);
-            defValue = newDefValue;
+    public Object getInitDefValue() {
+        return parseStringToValue(initDefValueStr);
+    }
+
+    public void setDefValueStr(String defValueStr) {
+        setDefValueObj(parseStringToValue(defValueStr));
+    }
+
+    public void setDefValueObj(Object newDefValue) {
+        if(newDefValue == null) {
+            newDefValue = getInitDefValue();
         }
+
+        updateDbValue(defValue, newDefValue);
+        defValue = newDefValue;
+
+        if(editDefValue) {
+            setValue(defValue);
+        }
+
+        postUpdateHint();
     }
 
     public void pushToDb() {
         setValue(parseStringToValue(getText().toString()));
     }
 
-    public void setColumnValue(Object value) {
-        if(tableManager != null && tableColumn != null) {
-            long dbRecordId = getRecordId();
-            if(dbRecordId != -1) {
-                if(value != null && tableColumn.getType() == DbTableColumn.TYPE_STRING) {
-                    value = String.valueOf(value);
-                }
-                tableManager.setColumnValue(dbRecordId, tableColumn.getColumnName(), value);
-            }
-        }
-    }
-
     public void pullFromDb() {
         T dbValue = getValue();
+
+        if(editDefValue) {
+            setDefValueObj(dbValue);
+        }
 
         if(dbValue == null || ((initHint != null || hintShowDefValue) && dbValue.equals(defValue))) {
             clearText();
         }
         else {
-            postSetText(parseValueToString(dbValue));
+            postSetText(parseValueToString(getValue()));
+        }
+    }
+
+    public void setValue(Object value) {
+        if(tableColumn != null) {
+            Object defDbValue = parseStringToValue(parseValueToString(tableColumn.getDefValue()));
+            if(value == null || value.equals(defDbValue)) {
+                if(defValue == null) {
+                    defValue = defDbValue;
+                }
+
+                value = defValue;
+            }
+
+            if(compareValues(value, minValue) == -1) {
+                value = minValue;
+            }
+
+            if(compareValues(value, maxValue) == 1) {
+                value = maxValue;
+            }
+
+            setColumnValue(value);
         }
     }
 
@@ -186,13 +228,30 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         catch(Exception ignored) {}
     }
 
+    public void postSetSelection(final int index) {
+        try {
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    setSelection(index);
+                }
+            });
+        }
+        catch(Exception ignored) {}
+    }
+
     public void syncValue() {
         pushToDb();
         pullFromDb();
     }
 
-    public void syncValue(Object value) {
+    public void syncValueObj(Object value) {
         setValue(value);
+        pullFromDb();
+    }
+
+    public void syncValueStr(String valueStr) {
+        setValue(parseStringToValue(valueStr));
         pullFromDb();
     }
 
@@ -216,32 +275,21 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
 
     abstract protected DbTableManager registerTableManager(String tableName);
 
-    private void updateDbValue(Object oldDefValue, Object newDefValue) {
-        if(newDefValue != null && (oldDefValue == null || compareValues(getValue(), oldDefValue) == 0 && !oldDefValue.equals(newDefValue))) {
-            setValue(newDefValue);
+    private void setColumnValue(Object value) {
+        if(tableManager != null && tableColumn != null) {
+            long dbRecordId = getRecordId();
+            if(dbRecordId != -1) {
+                if(value != null && tableColumn.getType() == DbTableColumn.TYPE_STRING) {
+                    value = String.valueOf(value);
+                }
+                tableManager.setColumnValue(dbRecordId, tableColumn.getColumnName(), value);
+            }
         }
     }
 
-    private void setValue(Object value) {
-        if(tableColumn != null) {
-            Object defDbValue = parseStringToValue(parseValueToString(tableColumn.getDefValue()));
-            if(value == null || value.equals(defDbValue)) {
-                if(defValue == null) {
-                    defValue = defDbValue;
-                }
-
-                value = defValue;
-            }
-
-            if(compareValues(value, minValue) == -1) {
-                value = minValue;
-            }
-
-            if(compareValues(value, maxValue) == 1) {
-                value = maxValue;
-            }
-
-            setColumnValue(value);
+    private void updateDbValue(Object oldDefValue, Object newDefValue) {
+        if(newDefValue != null && (oldDefValue == null || compareValues(getValue(), oldDefValue) == 0 && !oldDefValue.equals(newDefValue))) {
+            setValue(newDefValue);
         }
     }
 
@@ -490,7 +538,9 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
     private DbTableManager tableManager;
     private DbTableColumn tableColumn;
     private int valueType;
+    private String initDefValueStr;
     private Object defValue;
+    private boolean editDefValue;
     private Object minValue;
     private Object maxValue;
     private int hintTypeface;
@@ -519,6 +569,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
             TAG_OPENING + TAG_TYPEFACE_BOLD_ITALIC + TAG_CLOSING,   //Typeface.BOLD_ITALIC
     };
 
+    private static boolean DEF_EDIT_DEF_VALUE = false;
     private static boolean DEF_HINT_SHOW_DEF_VALUE = true;
     private static int DEF_MIN_FRACTION_DIGITS = 2;
     private static int DEF_MAX_FRACTION_DIGITS = DEF_MIN_FRACTION_DIGITS;
