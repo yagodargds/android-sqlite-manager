@@ -26,7 +26,7 @@ public class DbTableColumn {
         this.defValue = defValue;
 
         if(this.isPrimaryKey) {
-            this.type = TYPE_INTEGER;
+            this.type = TYPE_LONG;
             exprDefValue = null;
         }
         else if(defValue != null) {

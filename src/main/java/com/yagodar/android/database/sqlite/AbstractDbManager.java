@@ -4,174 +4,157 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
+import android.database.sqlite.SQLiteException;
 
-import java.util.ArrayList;
+import com.yagodar.essential.operation.OperationResult;
+
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Yagodar on 20.08.13.
  */
 public abstract class AbstractDbManager {
     protected AbstractDbManager(Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
-        this.dbTableManagers = new HashMap<String, DbTableManager>();
-        addAllDbTableManager(registerDbTableManagers());
-        setDbHelper(registerDbHelper(context, dbName, csFactory, dbVersion));
-        loadAllRecords();
+        mTableManagerByName = new HashMap<>();
+        regTableManagers();
+        mHelper = new DbHelper(this, context, dbName, csFactory, dbVersion);
     }
 
-    public <V extends AbstractDbTableContract> DbTableManager getDbTableManager(V contract) {
-        return dbTableManagers.get(contract.getTableName());
+    public DbTableManager getTableManager(AbstractDbTableContract contract) {
+        return mTableManagerByName.get(contract.getTableName());
     }
 
-    public <V extends AbstractDbTableContract> DbTableManager getDbTableManager(String tableName) {
-        return dbTableManagers.get(tableName);
+    public DbTableManager getTableManager(String tableName) {
+        return mTableManagerByName.get(tableName);
     }
 
-    public Collection<DbTableManager> getAllDbTableManagers() {
-        return dbTableManagers.values();
+    public Collection<DbTableManager> getAllTableManagers() {
+        return mTableManagerByName.values();
     }
 
-    protected abstract Collection<AbstractDbTableContract> registerDbTableContracts();
+    protected abstract List<AbstractDbTableContract> regTableContracts();
 
-    protected Collection<DbTableManager> registerDbTableManagers() {
-        ArrayList<DbTableManager> dbTableManagers = new ArrayList<DbTableManager>();
-
-        for(AbstractDbTableContract dbTableContract : registerDbTableContracts()) {
-            dbTableManagers.add(new DbTableManager(dbTableContract));
+    protected void regTableManagers() {
+        List<AbstractDbTableContract> dbTableContracts = regTableContracts();
+        if(dbTableContracts == null) {
+            throw new IllegalArgumentException("Db Table Contracts must be properly registered first!");
         }
 
-        return dbTableManagers;
-    }
-
-
-    protected DbHelper registerDbHelper(Context contextString, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
-        return new DbHelper(contextString, dbName, csFactory, dbVersion);
-    }
-
-    protected void removeDbTableManager(String tableName) {
-        dbTableManagers.remove(tableName);
-    }
-
-    protected DbHelper getDbHelper() {
-        return dbHelper;
-    }
-
-    protected boolean isContextEquals(Context context) {
-        if(context != null) {
-            return dbHelper.getReadableDatabase().getPath().equals(context.getDatabasePath(getDbName()).getPath());
+        for(AbstractDbTableContract dbTableContract : dbTableContracts) {
+            mTableManagerByName.put(dbTableContract.getTableName(), new DbTableManager(this, dbTableContract));
         }
-
-        return false;
     }
 
-    protected String getDbName() {
-        String dbPath = dbHelper.getReadableDatabase().getPath();
-        return dbPath.substring(dbPath.lastIndexOf("/") + 1);
+    protected DbHelper getHelper() {
+        return mHelper;
     }
 
-    protected long insert(String tableName, String nullColumnHack, ContentValues values) {
-        long rowId = -1;
+    protected OperationResult<Long> insert(String tableName, String nullColumnHack, ContentValues values) {
+        OperationResult<Long> opResult = new OperationResult<>();
 
+        SQLiteDatabase db = null;
         try {
-            rowId = dbHelper.getWritableDatabase().insertOrThrow(tableName, nullColumnHack, values);
-        }
-        catch(Exception e) {
-            Log.e(LOG_TAG, Log.getStackTraceString(e));
+            db = getDatabase();
+            long rowId = db.insertOrThrow(tableName, nullColumnHack, values);
+            opResult.setData(rowId);
+        } catch(Exception e) {
+            opResult.setFailThrowable(e);
+        } finally {
+            closeDatabase(db);
         }
 
-        return rowId;
+        return opResult;
     }
 
-    protected int update(String tableName, ContentValues values, String whereClause, String[] whereArgs) {
-        int rowsAffected = 0;
+    protected OperationResult<Integer> update(String tableName, ContentValues values, String whereClause, String[] whereArgs) {
+        OperationResult<Integer> opResult = new OperationResult<>();
 
+        SQLiteDatabase db = null;
         try {
-            rowsAffected = dbHelper.getWritableDatabase().update(tableName, values, whereClause, whereArgs);
-        }
-        catch(Exception e) {
-            Log.e(LOG_TAG, Log.getStackTraceString(e));
+            db = getDatabase();
+            int rowsAffected = db.update(tableName, values, whereClause, whereArgs);
+            opResult.setData(rowsAffected);
+        } catch(Exception e) {
+            opResult.setFailThrowable(e);
+        } finally {
+            closeDatabase(db);
         }
 
-        return rowsAffected;
+        return opResult;
     }
 
-    protected long replace(String tableName, String nullColumnHack, ContentValues initialValues) {
-        long rowId = 0;
+    protected OperationResult<Long> replace(String tableName, String nullColumnHack, ContentValues initialValues) {
+        OperationResult<Long> opResult = new OperationResult<>();
 
+        SQLiteDatabase db = null;
         try {
-            rowId = dbHelper.getWritableDatabase().replaceOrThrow(tableName, nullColumnHack, initialValues);
-        }
-        catch(Exception e) {
-            Log.e(LOG_TAG, Log.getStackTraceString(e));
+            db = getDatabase();
+            long rowId = db.replaceOrThrow(tableName, nullColumnHack, initialValues);
+            opResult.setData(rowId);
+        } catch(Exception e) {
+            opResult.setFailThrowable(e);
+        } finally {
+            closeDatabase(db);
         }
 
-        return rowId;
+        return opResult;
     }
 
-    protected Cursor query(String tableName, String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy, String limit) {
+    protected OperationResult<Void> query(String tableName, String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy, String limit, ICursorHandler handler) {
+        OperationResult<Void> opResult = new OperationResult<>();
+
+        SQLiteDatabase db = null;
         Cursor cs = null;
-
         try {
-            cs = dbHelper.getReadableDatabase().query(tableName, columns, selection, selectionArgs, groupBy, having, orderBy, limit);
-        }
-        catch(Exception e) {
-            Log.e(LOG_TAG, Log.getStackTraceString(e));
+            db = getDatabase();
+            cs = db.query(tableName, columns, selection, selectionArgs, groupBy, having, orderBy, limit);
+            handler.handle(cs);
+        } catch(Exception e) {
+            opResult.setFailThrowable(e);
+        } finally {
+            closeCursor(cs);
+            closeDatabase(db);
         }
 
-        return cs;
+        return opResult;
     }
 
-    protected int delete(String tableName, String whereClause, String[] whereArgs) {
-        int rowsAffected = 0;
+    protected OperationResult<Integer> delete(String tableName, String whereClause, String[] whereArgs) {
+        OperationResult<Integer> opResult = new OperationResult<>();
 
+        SQLiteDatabase db = null;
         try {
-            rowsAffected = dbHelper.getWritableDatabase().delete(tableName, whereClause, whereArgs);
-        }
-        catch(Exception e) {
-            Log.e(LOG_TAG, Log.getStackTraceString(e));
+            db = getDatabase();
+            int rowsAffected = db.delete(tableName, whereClause, whereArgs);
+            opResult.setData(rowsAffected);
+        } catch(Exception e) {
+            opResult.setFailThrowable(e);
+        } finally {
+            closeDatabase(db);
         }
 
-        return rowsAffected;
+        return opResult;
     }
 
-    protected void delAllRecords() {
-        for (DbTableManager tableManager : getAllDbTableManagers()) {
-            tableManager.delAllRecords();
-        }
+    private SQLiteDatabase getDatabase() throws SQLiteException {
+        return mHelper.getWritableDatabase();
     }
 
-    private void addDbTableManager(DbTableManager dbTableManager) {
-        if(dbTableManager != null) {
-            dbTableManagers.put(dbTableManager.getTableName(), dbTableManager);
-            dbTableManager.setDbManager(this);
-        }
-    }
-
-    private void addAllDbTableManager(Collection<DbTableManager> dbTableManagers) {
-        if(dbTableManagers != null) {
-            for(DbTableManager dbTableManager : dbTableManagers) {
-                addDbTableManager(dbTableManager);
-            }
+    private void closeCursor(Cursor cs) {
+        if(cs != null) {
+            cs.close();
         }
     }
 
-    private void setDbHelper(DbHelper dbHelper) {
-        if(dbHelper != null) {
-            this.dbHelper = dbHelper;
-            this.dbHelper.setDbManager(this);
+    private void closeDatabase(SQLiteDatabase db) {
+        if(db != null) {
+            db.close();
         }
     }
 
-    private void loadAllRecords() {
-        for (DbTableManager dbTableManager : dbTableManagers.values()) {
-            dbTableManager.loadRecords();
-        }
-    }
-
-    private DbHelper dbHelper;
-    private final HashMap<String, DbTableManager> dbTableManagers;
-
-    private static final String LOG_TAG = AbstractDbManager.class.getSimpleName();
+    private final DbHelper mHelper;
+    private final Map<String, DbTableManager> mTableManagerByName;
 }

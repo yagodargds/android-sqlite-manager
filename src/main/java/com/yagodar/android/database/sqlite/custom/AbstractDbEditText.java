@@ -10,8 +10,8 @@ import android.util.SparseArray;
 import android.view.View;
 import android.widget.EditText;
 
-import com.yagodar.android.database.sqlite.DbTableManager;
 import com.yagodar.android.database.sqlite.DbTableColumn;
+import com.yagodar.android.database.sqlite.DbTableManager;
 import com.yagodar.android.database.sqlite.R;
 
 import java.math.BigDecimal;
@@ -190,14 +190,15 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         if(tableManager != null && tableColumn != null) {
             long dbRecordId = getRecordId();
             if(dbRecordId != -1) {
-                try {
-                    dbValue = tableManager.getColumnValue(dbRecordId, tableColumn.getColumnName());
+                throw new UnsupportedOperationException("TODO");
+                //try {
+                    //dbValue = tableManager.getColumnValue(dbRecordId, tableColumn.getColumnName());
 
-                    if(tableColumn.getType() == DbTableColumn.TYPE_STRING) {
-                        dbValue = parseTypeStringValue((String) dbValue);
-                    }
-                }
-                catch(Exception ignored) {}
+                    //if(tableColumn.getType() == DbTableColumn.TYPE_STRING) {
+                    //    dbValue = parseTypeStringValue((String) dbValue);
+                    //}
+                //}
+                //catch(Exception ignored) {}
             }
         }
 
@@ -267,7 +268,7 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
         tableManager = registerTableManager(tableName);
 
         if(tableManager != null) {
-            tableColumn = tableManager.getTableContract().getDbTableColumn(tableColumnName);
+            tableColumn = tableManager.getContract().getDbTableColumn(tableColumnName);
         }
 
         postUpdateHint();
@@ -282,7 +283,8 @@ public abstract class AbstractDbEditText<T extends Object> extends EditText {
                 if(value != null && tableColumn.getType() == DbTableColumn.TYPE_STRING) {
                     value = String.valueOf(value);
                 }
-                tableManager.setColumnValue(dbRecordId, tableColumn.getColumnName(), value);
+                throw new UnsupportedOperationException("TODO");
+                //tableManager.setColumnValue(dbRecordId, tableColumn.getColumnName(), value);
             }
         }
     }

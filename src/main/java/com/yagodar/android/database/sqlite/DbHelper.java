@@ -8,21 +8,22 @@ import android.database.sqlite.SQLiteOpenHelper;
  * Created by Yagodar on 13.08.13.
  */
 public class DbHelper extends SQLiteOpenHelper {
-    protected DbHelper(Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
+    protected DbHelper(AbstractDbManager manager, Context context, String dbName, SQLiteDatabase.CursorFactory csFactory, int dbVersion) {
         super(context, dbName, csFactory, dbVersion);
+        mManager = manager;
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        for (DbTableManager dbTableManager : getDbManager().getAllDbTableManagers()) {
-            db.execSQL(dbTableManager.getSQLExprCreateDbTable());
+        for (DbTableManager dbTableManager : getManager().getAllTableManagers()) {
+            db.execSQL(dbTableManager.getSQLExprCreateTable());
         }
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        for (DbTableManager dbTableManager : getDbManager().getAllDbTableManagers()) {
-            db.execSQL(dbTableManager.getSQLExprDeleteDbTable());
+        for (DbTableManager dbTableManager : getManager().getAllTableManagers()) {
+            db.execSQL(dbTableManager.getSQLExprDeleteTable());
         }
 
         onCreate(db);
@@ -33,15 +34,11 @@ public class DbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    protected void setDbManager(AbstractDbManager dbManager) {
-        this.dbManager = dbManager;
+    protected AbstractDbManager getManager() {
+        return mManager;
     }
 
-    protected AbstractDbManager getDbManager() {
-        return dbManager;
-    }
-
-    private AbstractDbManager dbManager;
+    private final AbstractDbManager mManager;
 
     public static final String SYMB_OP_EQUALITY = "=";
 

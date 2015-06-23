@@ -2,21 +2,132 @@ package com.yagodar.android.database.sqlite;
 
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteException;
 import android.provider.BaseColumns;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import com.yagodar.essential.operation.OperationResult;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Yagodar on 22.08.13.
  */
 public class DbTableManager {
-    public DbTableManager(AbstractDbTableContract tableContract) {
-        this.tableContract = tableContract;
+    public DbTableManager(AbstractDbManager manager, AbstractDbTableContract contract) {
+        mManager = manager;
+        mContract = contract;
     }
 
-    public String getSQLExprCreateDbTable() {
+    public OperationResult<Long> insert() {
+        return insert(BaseColumns._ID, null);
+    }
+
+    public OperationResult<Long> insert(ContentValues values) {
+        return insert(BaseColumns._ID, values);
+    }
+
+    public OperationResult<Long> insert(String nullColumnHack, ContentValues values) {
+        return mManager.insert(getTableName(), nullColumnHack, values);
+    }
+
+    public OperationResult<Integer> update(long id, ContentValues values) {
+        return update(values, BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
+    }
+
+    public OperationResult<Integer> update(ContentValues values, String whereClause, String[] whereArgs) {
+        return mManager.update(getTableName(), values, whereClause, whereArgs);
+    }
+
+    public OperationResult<Long> replace(String nullColumnHack, ContentValues initialValues) {
+        return mManager.replace(getTableName(), nullColumnHack, initialValues);
+    }
+
+    public OperationResult<DbTableRecord> getRecord(long id) {
+        final DbTableRecord[] record = new DbTableRecord[1];
+        OperationResult<Void> queryResult = query(null, BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null, null, null, null, null, new ICursorHandler() {
+            @Override
+            public void handle(Cursor cs) throws SQLiteException {
+                if(cs.moveToNext()) {
+                    Object columnValues[] = new Object[getContract().getDbTableColumnsCount()];
+                    for (DbTableColumn column : getContract().getAllDbTableColumns()) {
+                        columnValues[cs.getColumnIndex(column.getColumnName())] = getValue(cs, column);
+                    }
+                    record[0] = new DbTableRecord(columnValues);
+                }
+            }
+        });
+
+        OperationResult < DbTableRecord > opResult = new OperationResult<>();
+
+        if(queryResult.isSuccessful()) {
+            if(record[0] != null) {
+                opResult.setData(record[0]);
+            } else {
+                opResult.setFailMessage("No record in table[" + getTableName() + "] for id[" + id + "]");
+            }
+        } else {
+            opResult.setFailThrowable(queryResult.getFailThrowable());
+        }
+
+        return opResult;
+    }
+
+    public OperationResult<List<DbTableRecord>> getAllRecords() {
+        final List<DbTableRecord> allRecords = new ArrayList<>();
+        OperationResult<Void> queryResult = query(null, null, null, null, null, null, null, new ICursorHandler() {
+            @Override
+            public void handle(Cursor cs) throws SQLiteException {
+                while(cs.moveToNext()) {
+                    Object columnValues[] = new Object[getContract().getDbTableColumnsCount()];
+                    for (DbTableColumn column : getContract().getAllDbTableColumns()) {
+                        columnValues[cs.getColumnIndex(column.getColumnName())] = getValue(cs, column);
+                    }
+                    allRecords.add(new DbTableRecord(columnValues));
+                }
+            }
+        });
+
+        OperationResult<List<DbTableRecord>> opResult = new OperationResult<>();
+
+        if(queryResult.isSuccessful()) {
+            opResult.setData(allRecords);
+        } else {
+            opResult.setFailThrowable(queryResult.getFailThrowable());
+        }
+
+        return opResult;
+    }
+
+    public OperationResult<Void> query(String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy, String limit, ICursorHandler handler) {
+        return mManager.query(getTableName(), columns, selection, selectionArgs, groupBy, having, orderBy, limit, handler);
+    }
+
+    public OperationResult<Integer> delete(long id) {
+        return delete(BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
+    }
+
+    public OperationResult<Integer> deleteAll() {
+        return delete(null, null);
+    }
+
+    public OperationResult<Integer> delete(String whereClause, String[] whereArgs) {
+        return mManager.delete(getTableName(), whereClause, whereArgs);
+    }
+
+    public AbstractDbTableContract getContract() {
+        return mContract;
+    }
+
+    protected AbstractDbManager getManager() {
+        return mManager;
+    }
+
+    protected String getTableName() {
+        return mContract.getTableName();
+    }
+
+    protected String getSQLExprCreateTable() {
         return DbHelper.EXPR_CREATE_TABLE_IF_NOT_EXISTS
                 + getTableName()
                 + DbHelper.SYMB_BRACKET_OPEN
@@ -25,174 +136,15 @@ public class DbTableManager {
                 + DbHelper.SYMB_DOT_COMMA;
     }
 
-    public long addRecord() {
-        return addRecord(BaseColumns._ID, null);
-    }
-
-    public long addRecord(String nullColumnHack, ContentValues values) {
-        long id = insert(nullColumnHack, values);
-
-        if(id != -1) {
-            recordsMap.put(id, new DbTableRecord(id, null));
-        }
-
-        return id;
-    }
-
-    public int setValues(long id, ContentValues values) {
-        return update(values, BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
-    }
-
-    public DbTableRecord getRecord(long id) {
-        return recordsMap.get(id);
-    }
-
-    public Collection<DbTableRecord> getAllRecords() {
-        return recordsMap.values();
-    }
-
-    public int delRecord(long id) {
-        int rowsAffected = delete(BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
-
-        if(rowsAffected != 0) {
-            recordsMap.remove(id);
-        }
-
-        return rowsAffected;
-    }
-
-    public int delAllRecords() {
-        int rowsAffected = delete(null, null);
-
-        if(rowsAffected != 0) {
-            recordsMap.clear();
-        }
-
-        return rowsAffected;
-    }
-
-    public String getSQLExprDeleteDbTable() {
+    protected String getSQLExprDeleteTable() {
         return DbHelper.EXPR_DROP_TABLE_IF_EXISTS
                 + getTableName();
-    }
-
-    public AbstractDbTableContract getTableContract() {
-        return tableContract;
-    }
-
-    public Object getColumnValue(long id, String columnName) {
-        return recordsMap.get(id).getColumnValue(columnName);
-    }
-
-    public int setColumnValue(long id, String columnName, Object value) {
-        ContentValues values = new ContentValues();
-
-        if(value == null) {
-            values.putNull(columnName);
-        }
-        else if(value instanceof Boolean) {
-            values.put(columnName, (Boolean) value);
-        }
-        else if(value instanceof Byte) {
-            values.put(columnName, (Byte) value);
-        }
-        else if(value instanceof byte[]) {
-            values.put(columnName, (byte[]) value);
-        }
-        else if(value instanceof Double) {
-            values.put(columnName, (Double) value);
-        }
-        else if(value instanceof Float) {
-            values.put(columnName, (Float) value);
-        }
-        else if(value instanceof Integer) {
-            values.put(columnName, (Integer) value);
-        }
-        else if(value instanceof Long) {
-            values.put(columnName, (Long) value);
-        }
-        else if(value instanceof Short) {
-            values.put(columnName, (Short) value);
-        }
-        else if(value instanceof String) {
-            values.put(columnName, (String) value);
-        }
-        else {
-            return -1;
-        }
-
-        return setColumnValues(id, values);
-    }
-
-    protected void loadRecords() {
-        recordsMap = new LinkedHashMap<Long, DbTableRecord>();
-
-        Cursor cs = query(null, null, null, null, null, null, null);
-        if(cs != null) {
-            long id;
-            while(cs.moveToNext()) {
-                id = cs.getLong(cs.getColumnIndex(BaseColumns._ID));
-
-                Object columnValues[] = new Object[getTableContract().getDbTableColumnsCount()];
-                for (DbTableColumn column : getTableContract().getAllDbTableColumns()) {
-                    columnValues[cs.getColumnIndex(column.getColumnName())] = getValue(cs, column);
-                }
-
-                recordsMap.put(id, new DbTableRecord(id, columnValues));
-            }
-
-            cs.close();
-        }
-    }
-
-    protected int setColumnValues(long id, ContentValues values) {
-        int rowsAffected = setValues(id, values);
-
-        if(rowsAffected > 0) {
-            for (Map.Entry<String, Object> valueEntry : values.valueSet()) {
-                recordsMap.get(id).setColumnValue(valueEntry.getKey(), valueEntry.getValue());
-            }
-        }
-
-        return rowsAffected;
-    }
-
-    protected String getTableName() {
-        return tableContract.getTableName();
-    }
-
-    protected void setDbManager(AbstractDbManager dbManager) {
-        this.dbManager = dbManager;
-    }
-
-    protected AbstractDbManager getDbManager() {
-        return dbManager;
-    }
-
-    protected long insert(String nullColumnHack, ContentValues values) {
-        return dbManager.insert(getTableName(), nullColumnHack, values);
-    }
-
-    protected int update(ContentValues values, String whereClause, String[] whereArgs) {
-        return dbManager.update(getTableName(), values, whereClause, whereArgs);
-    }
-
-    protected long replace(String nullColumnHack, ContentValues initialValues) {
-        return dbManager.replace(getTableName(), nullColumnHack, initialValues);
-    }
-
-    protected Cursor query(String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy, String limit) {
-        return dbManager.query(getTableName(), columns, selection, selectionArgs, groupBy, having, orderBy, limit);
-    }
-
-    protected int delete(String whereClause, String[] whereArgs) {
-        return dbManager.delete(getTableName(), whereClause, whereArgs);
     }
 
     private String getSQLExprCreateDbTableColumns() {
         String sqlExpr = "";
 
-        for (DbTableColumn columnInfo : tableContract.getAllDbTableColumns()) {
+        for (DbTableColumn columnInfo : mContract.getAllDbTableColumns()) {
             sqlExpr += columnInfo.getSQLExprOfCreation();
             sqlExpr += DbHelper.SYMB_COMMA;
         }
@@ -242,40 +194,25 @@ public class DbTableManager {
     }
 
     public class DbTableRecord {
-        protected DbTableRecord(long id, Object[] columnValues) {
-            if(id != -1) {
-                if(columnValues == null) {
-                    columnValues = new Object[tableContract.getDbTableColumnsCount()];
-
-                    for (DbTableColumn column : tableContract.getAllDbTableColumns()) {
-                        if(!column.isPrimaryKey()) {
-                            columnValues[tableContract.getDbTableColumnIndex(column)] = column.getDefValue();
-                        }
-                    }
-                }
-
-                columnValues[tableContract.getDbTableColumnIndex(BaseColumns._ID)] = id;
-                this.columnValues = columnValues;
+        protected DbTableRecord(Object[] values) {
+            if(values == null) {
+                throw new IllegalArgumentException("Values must not be null!");
             }
+
+            mValues = values;
         }
 
         public long getId() {
-            return (Long) getColumnValue(BaseColumns._ID);
+            return (Long) getValue(BaseColumns._ID);
         }
 
-        protected Object getColumnValue(String columnName) {
-            return columnValues[tableContract.getDbTableColumnIndex(columnName)];
+        public Object getValue(String columnName) {
+            return mValues[mContract.getDbTableColumnIndex(columnName)];
         }
 
-        protected void setColumnValue(String columnName, Object value) {
-            columnValues[tableContract.getDbTableColumnIndex(columnName)] = value;
-        }
-
-        private Object[] columnValues;
+        private Object[] mValues;
     }
 
-    private AbstractDbManager dbManager;
-    private LinkedHashMap<Long, DbTableRecord> recordsMap;
-
-    private final AbstractDbTableContract tableContract;
+    private final AbstractDbManager mManager;
+    private final AbstractDbTableContract mContract;
 }
