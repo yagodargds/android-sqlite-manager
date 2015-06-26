@@ -35,6 +35,22 @@ public abstract class AbstractDbManager {
         return mTableManagerByName.values();
     }
 
+    public SQLiteDatabase getDatabase() throws SQLiteException {
+        return mHelper.getWritableDatabase();
+    }
+
+    public void closeCursor(Cursor cs) {
+        if(cs != null) {
+            cs.close();
+        }
+    }
+
+    public void closeDatabase(SQLiteDatabase db) {
+        if(db != null) {
+            db.close();
+        }
+    }
+
     protected abstract List<AbstractDbTableContract> regTableContracts();
 
     protected void regTableManagers() {
@@ -137,22 +153,6 @@ public abstract class AbstractDbManager {
         }
 
         return opResult;
-    }
-
-    private SQLiteDatabase getDatabase() throws SQLiteException {
-        return mHelper.getWritableDatabase();
-    }
-
-    private void closeCursor(Cursor cs) {
-        if(cs != null) {
-            cs.close();
-        }
-    }
-
-    private void closeDatabase(SQLiteDatabase db) {
-        if(db != null) {
-            db.close();
-        }
     }
 
     private final DbHelper mHelper;

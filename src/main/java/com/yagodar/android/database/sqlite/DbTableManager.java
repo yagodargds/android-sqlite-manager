@@ -23,6 +23,12 @@ public class DbTableManager {
         return insert(BaseColumns._ID, null);
     }
 
+    public OperationResult<Long> insertToGroup(String columnNameGroupId, long groupId) {
+        ContentValues values = new ContentValues();
+        values.put(columnNameGroupId, groupId);
+        return insert(BaseColumns._ID, values);
+    }
+
     public OperationResult<Long> insert(ContentValues values) {
         return insert(BaseColumns._ID, values);
     }
@@ -73,6 +79,32 @@ public class DbTableManager {
         return opResult;
     }
 
+    public OperationResult<List<DbTableRecord>> getGroupRecords(String columnNameGroupId, long groupId) {
+        final List<DbTableRecord> allRecords = new ArrayList<>();
+        OperationResult<Void> queryResult = query(null, columnNameGroupId + DbHelper.SYMB_OP_EQUALITY + groupId, null, null, null, null, null, new ICursorHandler() {
+            @Override
+            public void handle(Cursor cs) throws SQLiteException {
+                while(cs.moveToNext()) {
+                    Object columnValues[] = new Object[getContract().getDbTableColumnsCount()];
+                    for (DbTableColumn column : getContract().getAllDbTableColumns()) {
+                        columnValues[cs.getColumnIndex(column.getColumnName())] = getValue(cs, column);
+                    }
+                    allRecords.add(new DbTableRecord(columnValues));
+                }
+            }
+        });
+
+        OperationResult<List<DbTableRecord>> opResult = new OperationResult<>();
+
+        if(queryResult.isSuccessful()) {
+            opResult.setData(allRecords);
+        } else {
+            opResult.setFailThrowable(queryResult.getFailThrowable());
+        }
+
+        return opResult;
+    }
+
     public OperationResult<List<DbTableRecord>> getAllRecords() {
         final List<DbTableRecord> allRecords = new ArrayList<>();
         OperationResult<Void> queryResult = query(null, null, null, null, null, null, null, new ICursorHandler() {
@@ -105,6 +137,10 @@ public class DbTableManager {
 
     public OperationResult<Integer> delete(long id) {
         return delete(BaseColumns._ID + DbHelper.SYMB_OP_EQUALITY + id, null);
+    }
+
+    public OperationResult<Integer> deleteGroup(String columnNameGroupId, long groupId) {
+        return delete(columnNameGroupId + DbHelper.SYMB_OP_EQUALITY + groupId, null);
     }
 
     public OperationResult<Integer> deleteAll() {
