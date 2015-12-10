@@ -39,6 +39,12 @@ public abstract class AbstractDbManager {
         return mHelper.getWritableDatabase();
     }
 
+    public void endTransaction(SQLiteDatabase db) {
+        if(db != null) {
+            db.endTransaction();
+        }
+    }
+
     public void closeCursor(Cursor cs) {
         if(cs != null) {
             cs.close();
