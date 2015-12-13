@@ -5,23 +5,28 @@ package com.yagodar.android.database.sqlite;
  */
 public class DbTableColumn {
     protected DbTableColumn(String columnName) {
-        this(false, TYPE_NULL, columnName, null);
+        this(false, false, TYPE_NULL, columnName, null);
     }
 
     protected DbTableColumn(int type, String columnName) {
-        this(false, type, columnName, null);
+        this(false, false, type, columnName, null);
     }
 
     protected DbTableColumn(String columnName, Object defValue) {
-        this(false, TYPE_NULL, columnName, defValue);
+        this(false, false, TYPE_NULL, columnName, defValue);
     }
 
     protected DbTableColumn(boolean isPrimaryKey, String columnName) {
-        this(isPrimaryKey, TYPE_NULL, columnName, null);
+        this(isPrimaryKey, false, TYPE_NULL, columnName, null);
     }
 
-    private DbTableColumn(boolean isPrimaryKey, int type, String columnName, Object defValue) {
+    protected DbTableColumn(boolean isPrimaryKey, boolean isAutoincrement, String columnName) {
+        this(isPrimaryKey, isAutoincrement, TYPE_NULL, columnName, null);
+    }
+
+    private DbTableColumn(boolean isPrimaryKey, boolean isAutoincrement, int type, String columnName, Object defValue) {
         this.isPrimaryKey = isPrimaryKey;
+        this.isAutoincrement = isAutoincrement;
         this.columnName = columnName;
         this.defValue = defValue;
 
@@ -83,6 +88,10 @@ public class DbTableColumn {
         return isPrimaryKey;
     }
 
+    public boolean isAutoincrement() {
+        return isAutoincrement;
+    }
+
     public boolean isNull() {
         return type == TYPE_NULL || defValue == null;
     }
@@ -96,6 +105,9 @@ public class DbTableColumn {
 
         if(isPrimaryKey) {
             sQLExprOfCreation += DbHelper.EXPR_PRIMARY_KEY;
+            if(isAutoincrement) {
+                sQLExprOfCreation += DbHelper.EXPR_AUTOINCREMENT;
+            }
         }
         else if(exprDefValue != null) {
             sQLExprOfCreation += DbHelper.EXPR_DEFAULT + DbHelper.SYMB_APOSTROPHE + exprDefValue + DbHelper.SYMB_APOSTROPHE;
@@ -111,6 +123,7 @@ public class DbTableColumn {
     private final int type;
     private final String exprType;
     private final boolean isPrimaryKey;
+    private final boolean isAutoincrement;
     private final Object defValue;
     private final String exprDefValue;
 

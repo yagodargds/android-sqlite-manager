@@ -64,6 +64,10 @@ public abstract class AbstractDbTableContract implements BaseColumns {
         addDbTableColumn(new DbTableColumn(isPrimaryKey, columnName));
     }
 
+    protected void addDbTableColumn(boolean isPrimaryKey, boolean isAutoincrement, String columnName) {
+        addDbTableColumn(new DbTableColumn(isPrimaryKey, isAutoincrement, columnName));
+    }
+
     private void addDbTableColumn(DbTableColumn dbTableColumn) {
         if(dbTableColumn != null) {
             dbTableColumns.add(dbTableColumn);

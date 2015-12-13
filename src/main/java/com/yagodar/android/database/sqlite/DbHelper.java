@@ -56,6 +56,7 @@ public class DbHelper extends SQLiteOpenHelper {
     public static final String EXPR_CREATE_TABLE_IF_NOT_EXISTS = "CREATE TABLE IF NOT EXISTS ";
     public static final String EXPR_DROP_TABLE_IF_EXISTS = "DROP TABLE IF EXISTS ";
     public static final String EXPR_PRIMARY_KEY = " PRIMARY KEY";
+    public static final String EXPR_AUTOINCREMENT = " AUTOINCREMENT";
     public static final String EXPR_NOT_NULL = " NOT NULL";
     public static final String EXPR_DEFAULT = " DEFAULT ";
 }
