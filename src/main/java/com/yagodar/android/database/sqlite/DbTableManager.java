@@ -64,7 +64,7 @@ public class DbTableManager {
             }
         });
 
-        OperationResult < DbTableRecord > opResult = new OperationResult<>();
+        OperationResult<DbTableRecord> opResult = new OperationResult<>();
 
         if(queryResult.isSuccessful()) {
             if(record[0] != null) {
@@ -98,6 +98,32 @@ public class DbTableManager {
 
         if(queryResult.isSuccessful()) {
             opResult.setData(allRecords);
+        } else {
+            opResult.setFailThrowable(queryResult.getFailThrowable());
+        }
+
+        return opResult;
+    }
+
+    public OperationResult<Integer> getGroupRecordsCount(String columnNameGroupId, long groupId) {
+        final Integer[] count = new Integer[1];
+        OperationResult<Void> queryResult = query(new String[] { DbHelper.EXPR_COUNT + DbHelper.SYMB_BRACKET_OPEN + columnNameGroupId + DbHelper.SYMB_BRACKET_CLOSE }, columnNameGroupId + DbHelper.SYMB_OP_EQUALITY + groupId, null, null, null, null, null, new ICursorHandler() {
+            @Override
+            public void handle(Cursor cs) throws SQLiteException {
+                if(cs.moveToNext()) {
+                    count[0] = cs.getInt(0);
+                }
+            }
+        });
+
+        OperationResult<Integer> opResult = new OperationResult<>();
+
+        if(queryResult.isSuccessful()) {
+            if(count[0] != null) {
+                opResult.setData(count[0]);
+            } else {
+                opResult.setFailMessage("Can`t get group records count in table[" + getTableName() + "] for group id[" + groupId + "]");
+            }
         } else {
             opResult.setFailThrowable(queryResult.getFailThrowable());
         }

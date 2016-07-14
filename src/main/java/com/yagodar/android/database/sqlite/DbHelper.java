@@ -59,4 +59,5 @@ public class DbHelper extends SQLiteOpenHelper {
     public static final String EXPR_AUTOINCREMENT = " AUTOINCREMENT";
     public static final String EXPR_NOT_NULL = " NOT NULL";
     public static final String EXPR_DEFAULT = " DEFAULT ";
+    public static final String EXPR_COUNT = "COUNT";
 }
